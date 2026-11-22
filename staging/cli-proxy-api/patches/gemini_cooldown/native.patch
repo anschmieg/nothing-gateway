@@ -1,0 +1,202 @@
+--- a/sdk/cliproxy/auth/conductor.go
++++ b/sdk/cliproxy/auth/conductor.go
+@@ -172,6 +172,8 @@
+ 
+ // Manager orchestrates auth lifecycle, selection, execution, and persistence.
+ type Manager struct {
++	geminiRecoveryMu          sync.Mutex
++	geminiRecovery            map[string]bool
+ 	store                     Store
+ 	cooldownStore             CooldownStateStore
+ 	pendingCooldownStateStore CooldownStateStore
+--- a/sdk/cliproxy/auth/conductor_cooldown.go
++++ b/sdk/cliproxy/auth/conductor_cooldown.go
+@@ -1054,6 +1054,13 @@
+ 					}
+ 
+ 					statusCode := statusCodeFromResult(result.Error)
++					// Gemini reports depleted project credits as 402. Reuse the
++					// finite credential-quota machinery without rewriting the
++					// original error delivered to clients or persisted in state.
++					if strings.EqualFold(auth.Provider, "gemini") && statusCode == 402 && result.CredentialScope {
++						statusCode = 429
++					}
++
+ 					if isModelSupportResultError(result.Error) {
+ 						if disableCooling {
+ 							state.NextRetryAfter = time.Time{}
+--- a/sdk/cliproxy/auth/canonical_policy_execution.go
++++ b/sdk/cliproxy/auth/canonical_policy_execution.go
+@@ -22,9 +22,18 @@
+ 		return registry.CanonicalRoutingConfig{}
+ 	}
+ 	p := cfg.Models.CanonicalRouting
+- p.OAuthSubscriptionAssumptions=append([]registry.OAuthSubscriptionAssumption(nil),p.OAuthSubscriptionAssumptions...)
+- if p.Profiles!=nil {cloned:=map[string]registry.ModelProfile{};for name,profile:=range p.Profiles{cloned[name]=profile};p.Profiles=cloned}
+- p.NoChargeAllowances=append([]registry.NoChargeAllowance(nil),p.NoChargeAllowances...);for i:=range p.NoChargeAllowances{p.NoChargeAllowances[i].SourceModels=append([]string(nil),p.NoChargeAllowances[i].SourceModels...)}
++	p.OAuthSubscriptionAssumptions = append([]registry.OAuthSubscriptionAssumption(nil), p.OAuthSubscriptionAssumptions...)
++	if p.Profiles != nil {
++		cloned := map[string]registry.ModelProfile{}
++		for name, profile := range p.Profiles {
++			cloned[name] = profile
++		}
++		p.Profiles = cloned
++	}
++	p.NoChargeAllowances = append([]registry.NoChargeAllowance(nil), p.NoChargeAllowances...)
++	for i := range p.NoChargeAllowances {
++		p.NoChargeAllowances[i].SourceModels = append([]string(nil), p.NoChargeAllowances[i].SourceModels...)
++	}
+ 	if p.FreeFallbacks != nil {
+ 		out := map[string][]string{}
+ 		for k, v := range p.FreeFallbacks {
+@@ -47,7 +56,7 @@
+ 	}
+ 	return preserveRequestedModelSuffix(route, info.CanonicalSourceID), true
+ }
+-func (m *Manager) validateCanonicalDispatch(ctx context.Context,a *Auth, req cliproxyexecutor.Request, opts *cliproxyexecutor.Options) error {
++func (m *Manager) validateCanonicalDispatch(ctx context.Context, a *Auth, req cliproxyexecutor.Request, opts *cliproxyexecutor.Options) error {
+ 	if !canonicalOneDispatch(opts.Metadata) {
+ 		return nil
+ 	}
+@@ -77,27 +86,47 @@
+ 	if !permit.Claim() {
+ 		return &Error{Code: "canonical_dispatch_budget", Message: "canonical physical dispatch permit already consumed", HTTPStatus: 409}
+ 	}
+-	if err:=m.guardBillingDispatch(ctx,a,current,strings.TrimSuffix(strings.TrimSuffix(route,":free"),":paid"));err!=nil{return err}
+- opts.Metadata["gateway.canonical_source_model"] = bound.PluginSource
++	if err := m.guardBillingDispatch(ctx, a, current, strings.TrimSuffix(strings.TrimSuffix(route, ":free"), ":paid")); err != nil {
++		return err
++	}
++	opts.Metadata["gateway.canonical_source_model"] = bound.PluginSource
+ 	opts.Metadata["gateway.canonical_cost_tier"] = bound.CostTier
+ 	opts.Metadata["gateway.canonical_vendor"] = bound.Owner
+ 	opts.Metadata["gateway.canonical_free"] = bound.Free
+ 	return nil
+ }
+ func (m *Manager) executeCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
+-	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
++	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
+ 		return cliproxyexecutor.Response{}, err
++	}
++	release, err := m.acquireGeminiRecovery(a, req.Model)
++	if err != nil {
++		return cliproxyexecutor.Response{}, err
++	}
++	if release != nil {
++		defer release()
+ 	}
+ 	return e.Execute(ctx, a, req, opts)
+ }
+ func (m *Manager) streamCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (*cliproxyexecutor.StreamResult, error) {
+-	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
++	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
+ 		return nil, err
+ 	}
+-	return e.ExecuteStream(ctx, a, req, opts)
++	release, err := m.acquireGeminiRecovery(a, req.Model)
++	if err != nil {
++		return nil, err
++	}
++	result, err := e.ExecuteStream(ctx, a, req, opts)
++	if err != nil {
++		if release != nil {
++			release()
++		}
++		return nil, err
++	}
++	return holdGeminiRecoveryStream(ctx, result, release), nil
+ }
+ func (m *Manager) countCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
+-	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
++	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
+ 		return cliproxyexecutor.Response{}, err
+ 	}
+ 	return e.CountTokens(ctx, a, req, opts)
+--- a/internal/runtime/executor/gemini_executor.go
++++ b/internal/runtime/executor/gemini_executor.go
+@@ -12,6 +12,7 @@
+ 	"io"
+ 	"net/http"
+ 	"strings"
++	"time"
+ 
+ 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+ 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
+@@ -230,7 +231,7 @@
+ 		b, _ := io.ReadAll(httpResp.Body)
+ 		helps.AppendAPIResponseChunk(ctx, e.cfg, b)
+ 		helps.LogWithRequestID(ctx).Debugf("request error, error status: %d, error message: %s", httpResp.StatusCode, helps.SummarizeErrorBody(httpResp.Header.Get("Content-Type"), b))
+-		err = statusErr{code: httpResp.StatusCode, msg: string(b)}
++		err = newGeminiStatusError(httpResp.StatusCode, httpResp.Header, b)
+ 		return resp, err
+ 	}
+ 	data, err := io.ReadAll(httpResp.Body)
+@@ -363,7 +364,7 @@
+ 		if errClose := httpResp.Body.Close(); errClose != nil {
+ 			log.Errorf("gemini executor: close response body error: %v", errClose)
+ 		}
+-		err = statusErr{code: httpResp.StatusCode, msg: string(b)}
++		err = newGeminiStatusError(httpResp.StatusCode, httpResp.Header, b)
+ 		return nil, err
+ 	}
+ 	out := make(chan cliproxyexecutor.StreamChunk, 1)
+@@ -617,7 +618,7 @@
+ 	helps.AppendAPIResponseChunk(ctx, e.cfg, data)
+ 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
+ 		helps.LogWithRequestID(ctx).Debugf("request error, error status: %d, error message: %s", httpResp.StatusCode, helps.SummarizeErrorBody(httpResp.Header.Get("Content-Type"), data))
+-		err = statusErr{code: httpResp.StatusCode, msg: string(data)}
++		err = newGeminiStatusError(httpResp.StatusCode, httpResp.Header, data)
+ 		return resp, err
+ 	}
+ 	continuation.Observe(data)
+@@ -701,7 +702,7 @@
+ 			log.Errorf("gemini executor: close interactions error response body error: %v", errClose)
+ 		}
+ 		helps.AppendAPIResponseChunk(ctx, e.cfg, data)
+-		return nil, statusErr{code: httpResp.StatusCode, msg: string(data)}
++		return nil, newGeminiStatusError(httpResp.StatusCode, httpResp.Header, data)
+ 	}
+ 
+ 	out := make(chan cliproxyexecutor.StreamChunk)
+@@ -894,7 +895,7 @@
+ 	helps.AppendAPIResponseChunk(ctx, e.cfg, data)
+ 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+ 		helps.LogWithRequestID(ctx).Debugf("request error, error status: %d, error message: %s", resp.StatusCode, helps.SummarizeErrorBody(resp.Header.Get("Content-Type"), data))
+-		return cliproxyexecutor.Response{}, statusErr{code: resp.StatusCode, msg: string(data)}
++		return cliproxyexecutor.Response{}, newGeminiStatusError(resp.StatusCode, resp.Header, data)
+ 	}
+ 
+ 	count := gjson.GetBytes(data, "totalTokens").Int()
+@@ -1141,3 +1142,32 @@
+ 
+ // SupportsApplyPatch reports the actual executor contract, independent of its provider name.
+ func (e *GeminiExecutor) SupportsApplyPatch() bool { return e != nil }
++
++// Preserve the upstream status and body while attaching scheduling metadata.
++func newGeminiStatusError(status int, headers http.Header, body []byte) statusErr {
++	e := statusErr{code: status, msg: string(body)}
++	if status != 402 && status != 429 && status != 503 {
++		return e
++	}
++	e.retryAfter = parseRetryAfterHeader(headers, time.Now())
++	if e.retryAfter == nil {
++		for _, detail := range gjson.GetBytes(body, "error.details").Array() {
++			if detail.Get("@type").String() == "type.googleapis.com/google.rpc.RetryInfo" {
++				if d, err := time.ParseDuration(detail.Get("retryDelay").String()); err == nil && d >= 0 {
++					e.retryAfter = &d
++					break
++				}
++			}
++		}
++	}
++	message := strings.ToLower(gjson.GetBytes(body, "error.message").String())
++	// RESOURCE_EXHAUSTED alone also describes model-specific rate limits.
++	e.credentialScoped = (status == 402 || status == 429) &&
++		gjson.GetBytes(body, "error.status").String() == "RESOURCE_EXHAUSTED" &&
++		strings.Contains(message, "prepayment credits") && strings.Contains(message, "depleted")
++	if e.credentialScoped && e.retryAfter == nil {
++		d := 30 * time.Minute
++		e.retryAfter = &d
++	}
++	return e
++}
