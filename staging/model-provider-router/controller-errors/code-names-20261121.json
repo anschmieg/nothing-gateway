@@ -1,0 +1,16 @@
+{
+  "deployed": true,
+  "codes": {
+    "concurrency_limit_exceeded": 429,
+    "resource_not_ready": 503,
+    "resource_busy": 409,
+    "resource_conflict": 409,
+    "initialization_failed": 502,
+    "resource_unavailable": 503
+  },
+  "controller_http_tests_passed": 33,
+  "router_native_tests_passed": 26,
+  "controller_and_router_catalog_sha256": "f4b4d013b928c79825822114f735fc4c7a8a5f63471156f16c2b9831f6026313",
+  "verified_source_integrity": true,
+  "services_active": true
+}

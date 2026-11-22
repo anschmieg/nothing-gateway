@@ -1,0 +1,32 @@
+{
+  "deployed": true,
+  "controller_http_tests": 33,
+  "router_native_tests": 26,
+  "test_network": "loopback-only namespaces",
+  "public_success_checks": [
+    {
+      "endpoint": "chat/completions",
+      "http_status": "200",
+      "retry_after": null,
+      "error": null,
+      "complete_response": true
+    },
+    {
+      "endpoint": "messages",
+      "http_status": "200",
+      "retry_after": null,
+      "error": null,
+      "complete_response": true
+    }
+  ],
+  "verified_source_hashes": true,
+  "live_failure_states_injected": false,
+  "source_sha256": {
+    "router.py": "37ecb53c68e30345425ff327aa86fba4e3b5c8bf2966e401fc841f245f04c12f",
+    "admission_errors.py": "59821f55ec360ffd0afe12c2deb4a9ad2969eac534be0899a53e35447e654fd5",
+    "controller-errors/deploy.py": "1f0ead0f4d35ff4292dcde86e0581bfc21c231a7c09e6f166594fc5e044c3b02",
+    "controller-errors/test_admission_http.py": "a02fc30c4f5a9fc04f54c3adbad8bc4144be2713f7db15e93d9e177e21a95f01",
+    "controller-errors/test_server.py": "75e1493ea5e9e0e742d2b29fcb9c1aaab9f31b3e0b8053b03e90031b9b66bdac",
+    "controller-errors/prepare.py": "cc125bc1a331e5508f6edc82facda4dce1a6916be58ca38ae551c86fcf0fc15b"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "deployed": true,
+  "fixed_causes": [
+    "Discovery hides temporarily unavailable local routes; absence must not be treated as missing registration.",
+    "Qwen template rejects standard high reasoning effort; local final request mapping uses xhigh."
+  ],
+  "isolated_tests": {
+    "router_and_native_binary": 23,
+    "local_backend": 29,
+    "all_passed": true,
+    "network": "loopback-only namespaces"
+  },
+  "public_live_checks": {
+    "streaming_messages_high_reasoning_system_and_tool": {
+      "http_status": 200,
+      "tool": "lookup",
+      "arguments": {
+        "city": "Berlin"
+      },
+      "stop_reason": "tool_use"
+    },
+    "tool_result_continuation": {
+      "http_status": 200,
+      "stop_reason": "end_turn",
+      "text": "Berlin is the capital of Germany.",
+      "usage": {
+        "input_tokens": 62,
+        "output_tokens": 115,
+        "cache_read_input_tokens": 320
+      }
+    }
+  },
+  "cooldown_reset_scope": "Only self-hosted local-pc credential; caused by fixed upstream template error.",
+  "source_sha256": {
+    "wake_diagnostics.py": "aa39f4f4c4323ab266cf85a1d07f794bd741c9dd1172f329f21d5345dc77b187",
+    "deploy.py": "77725dd8ac4e633278ca340d247bf19824f7c5ee6e1cf535fae77a487aa923f6",
+    "test_router.py": "f2dbd599d233dfe4844eaabc0bbe70c0ddf73098fee7e9cff31a135f2733ed79",
+    "test_native_translation.py": "fee1c5a8ccc2e39dbf3b4e2981057f5fa8a696c03c9ad191d7095c480c5b223d",
+    "local_registration.py": "bafec514580a678932b9d3393035e23df71d36e179fb3130ce3109c86fccd9b6",
+    "router.py": "468cc9551d15cddde4622782b372b1a8fff72b4c63795125b32bd88e4ccc43f7",
+    "local-backend/test_reasoning_compat.py": "96a19effd22781813c526d43bb2caec388cc6f2d3b1ab5ab56de86d7a004632a",
+    "local-backend/reasoning_compat.py": "0752b052f9fcc0d01a3113a012b1a452f74d8ad42aa83b69f5acf907dbe8dfae",
+    "local-backend/prepare.py": "4aef3d60d6439a8e2b2c479b6ae260c8a734db15d7539a20e20e780972a9444a"
+  }
+}

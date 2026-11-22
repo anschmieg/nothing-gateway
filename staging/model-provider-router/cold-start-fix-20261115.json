@@ -1,0 +1,65 @@
+{
+  "deployed": true,
+  "causes": [
+    "Reasoning compatibility deployment had not updated PC verified source pins; warm model worked but cold profile selection refused changed server.py.",
+    "Native cooldown converted controller model_not_ready/503 into no eligible route and hid the local model."
+  ],
+  "fixes": {
+    "local_provider_disable_cooling": true,
+    "local_provider_request_retry": 0,
+    "cloud_provider_configs_unchanged": true,
+    "updated_integrity_pins": [
+      "app/gateway/server.py",
+      "app/gateway/reasoning_compat.py"
+    ],
+    "unrelated_source_and_model_integrity_verified": true
+  },
+  "validation": {
+    "network_isolated_native_and_router_tests": 24,
+    "network_isolated_backend_tests": 29,
+    "cold_model_state_before": "stopped",
+    "public_streaming_high_effort_after_cold_start": {
+      "http_status": 200,
+      "complete": true
+    },
+    "public_warm_high_effort_tool_request": {
+      "http": "HTTP 200",
+      "complete": true,
+      "tools": [
+        {
+          "type": "tool_use",
+          "id": "dvQk9kPn9w8nYXwDw105sDRyuWyZPUqo",
+          "name": "lookup",
+          "input": {}
+        }
+      ],
+      "final": [
+        {
+          "type": "message_delta",
+          "delta": {
+            "stop_reason": "tool_use",
+            "stop_sequence": null
+          },
+          "usage": {
+            "input_tokens": 317,
+            "output_tokens": 51
+          }
+        }
+      ],
+      "errors": []
+    }
+  },
+  "source_sha256": {
+    "wake_diagnostics.py": "aa39f4f4c4323ab266cf85a1d07f794bd741c9dd1172f329f21d5345dc77b187",
+    "deploy.py": "e24f34ab7e2905dace71b4af48061e7704351286b629111907683ca06c30b8dc",
+    "test_router.py": "f2dbd599d233dfe4844eaabc0bbe70c0ddf73098fee7e9cff31a135f2733ed79",
+    "fix_cold_start.py": "fc4117c0786950c6c365eea02f103a548134612395a2f870853d0092c489abad",
+    "test_native_translation.py": "e379eafca5d56208567c0a7c7969e328e61849a7dcac84ddde5c6a11a38d5a54",
+    "local_registration.py": "bafec514580a678932b9d3393035e23df71d36e179fb3130ce3109c86fccd9b6",
+    "router.py": "468cc9551d15cddde4622782b372b1a8fff72b4c63795125b32bd88e4ccc43f7",
+    "local-backend/test_reasoning_compat.py": "96a19effd22781813c526d43bb2caec388cc6f2d3b1ab5ab56de86d7a004632a",
+    "local-backend/reasoning_compat.py": "0752b052f9fcc0d01a3113a012b1a452f74d8ad42aa83b69f5acf907dbe8dfae",
+    "local-backend/update_integrity.py": "cbbc0b356660d4bc83625c13ffd7335c191d7fc35867af33fdb3c48cbf3f2a57",
+    "local-backend/prepare.py": "4aef3d60d6439a8e2b2c479b6ae260c8a734db15d7539a20e20e780972a9444a"
+  }
+}

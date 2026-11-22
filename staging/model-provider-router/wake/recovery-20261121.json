@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-21",
+  "causes": {
+    "home_wireguard": "Kernel endpoint retained 91.32.207.21:56107 while configured MyFRITZ hostname resolved to 91.0.199.78; last handshake almost six days old.",
+    "pc_controller": "Enabled user unit symlink pointed into Data, unavailable when user manager loaded it at boot. PC itself was already powered on.",
+    "model_startup": "Profile selector and runtime compared reboot-dependent device number 2065 to current 2049; all stable file attributes unchanged."
+  },
+  "repairs": {
+    "endpoint_refreshed": true,
+    "endpoint_timer_enabled": true,
+    "timer_interval_seconds": 60,
+    "healthy_peer_grace_seconds": 180,
+    "controller_unit_regular_file": true,
+    "controller_started": true,
+    "artifact_checks_use_filesystem_uuid_and_stable_stat_fields": true,
+    "full_model_sha256_verified": "a9d571cd9a072b58eec2f6651df2cbdd68f3736fafadc623af7bdd8521fee4bd",
+    "source_integrity_pins_updated": true
+  },
+  "verification": {
+    "new_regression_tests_passed": 9,
+    "wireguard_fresh_handshake": true,
+    "home_router_ping_success": true,
+    "controller_and_model_ready": true,
+    "public_original_request_status": 200,
+    "public_response_type": "message",
+    "stop_reason": "end_turn",
+    "full_pc_reboot_tested": false
+  },
+  "sources_sha256": {
+    "fix_controller_boot.py": "37729f62a9ed40b06d187ab7a3c4b06962ec5d4197db17a4db52c1a57e1dd986",
+    "test_native_boot.py": "838a965e8c76229ef928fe98546e9b92b73a0450b58bc0a56e99392fa8afbb10",
+    "test_wireguard_endpoint.py": "909dc2105441310455ea3014210efcb0142f7cf9b5e1c18a0bfad00fc4170521",
+    "prepare_native_runtime.py": "fef41a865238d2c753f29a140d8a0d8c52381200cd64d75dd4038da52f642ac5",
+    "heretic-home-endpoint.service": "78d8b19a1934195109436cfa154b22452d1b720204f34651bf0919a8244cd578",
+    "wireguard_endpoint.py": "7292b28d887bd781f73fcd6a1999db1e95df55f3df3f13eccac2d19ddbc28832",
+    "README.md": "f5873b6f17a6bfd0a8ce81d2e91116c31169a25c0c02933595b017dbf12e52e9",
+    "heretic-home-endpoint.timer": "2fbbaaf1f29bab75b16aa8a72bb31b80821ab97bb3270b8342fda0f5f5f55395",
+    "prepare_native_boot.py": "49639d0902ddcfcfd9dcb4d385027ebdf9514318df725da81617f009758e982a"
+  }
+}

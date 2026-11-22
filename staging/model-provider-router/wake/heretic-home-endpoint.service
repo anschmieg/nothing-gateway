@@ -1,0 +1,15 @@
+[Unit]
+Description=Re-resolve the home WireGuard dynamic endpoint
+After=network-online.target wg-quick@heretic-home.service
+Wants=network-online.target
+ConditionPathExists=/sys/class/net/heretic-home
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/heretic-wake/wireguard_endpoint.py
+TimeoutStartSec=20
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=CAP_NET_ADMIN

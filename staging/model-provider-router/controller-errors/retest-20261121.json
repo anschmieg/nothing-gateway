@@ -1,0 +1,46 @@
+{
+  "automated_tests": {
+    "controller_http": 33,
+    "router_native_translation": 26,
+    "all_passed": true
+  },
+  "deployed_files_match_tested_files": true,
+  "registered_source_integrity_verified": true,
+  "public_requests": [
+    {
+      "endpoint": "chat/completions",
+      "http_status": "200",
+      "retry_after": null,
+      "error": null,
+      "complete_response": true,
+      "transport_error": null
+    },
+    {
+      "endpoint": "messages",
+      "http_status": "429",
+      "retry_after": "15",
+      "error": {
+        "type": "rate_limit_error",
+        "message": "Local model is busy processing another request. No generation slot became available within the queue wait limit; retry shortly.",
+        "code": "concurrency_limit_exceeded"
+      },
+      "complete_response": false,
+      "transport_error": null
+    }
+  ],
+  "messages_retry_after_15_seconds": {
+    "endpoint": "messages",
+    "attempt": "after_retry_after",
+    "http_status": "429",
+    "retry_after": "15",
+    "error": {
+      "type": "rate_limit_error",
+      "message": "Local model is busy processing another request. No generation slot became available within the queue wait limit; retry shortly.",
+      "code": "concurrency_limit_exceeded"
+    },
+    "complete_response": false,
+    "transport_error": null
+  },
+  "live_busy_error_verified": true,
+  "live_loading_conflict_startup_errors_injected": false
+}

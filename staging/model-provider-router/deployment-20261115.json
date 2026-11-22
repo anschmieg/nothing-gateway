@@ -1,0 +1,34 @@
+{
+  "deployed": true,
+  "public_request": {
+    "endpoint": "/v1/messages",
+    "model": "local/qwen3.8-heretic",
+    "max_tokens": 256,
+    "prompt": "Hello",
+    "http_status": 200,
+    "response_type": "message",
+    "stop_reason": "end_turn",
+    "input_tokens": 11,
+    "output_tokens": 48
+  },
+  "isolated_tests": {
+    "count": 21,
+    "passed": true,
+    "network": "loopback-only namespace",
+    "native_binary": "8.0.49-tokligence.28-gemini-cooldown",
+    "real_provider_calls": 0
+  },
+  "cache_verification": {
+    "stable_translated_prefix": true,
+    "fixture_cached_token_usage_preserved": true,
+    "live_cache_hit_rate_measured": false
+  },
+  "source_sha256": {
+    "wake_diagnostics.py": "aa39f4f4c4323ab266cf85a1d07f794bd741c9dd1172f329f21d5345dc77b187",
+    "deploy.py": "77725dd8ac4e633278ca340d247bf19824f7c5ee6e1cf535fae77a487aa923f6",
+    "test_router.py": "b0553d3594bcff8ecb552d6df2114c42a5aeebc996ee455c68d7487d83f55c73",
+    "test_native_translation.py": "eba0bcd7a120b1d1f5aa4199406424289caa17b0b8d5be050d124dc3a8af3e61",
+    "local_registration.py": "bafec514580a678932b9d3393035e23df71d36e179fb3130ce3109c86fccd9b6",
+    "router.py": "c14550cfd58682d28e8d5327d67fef59bf50e8039b11ea41e098df7464ee30b1"
+  }
+}

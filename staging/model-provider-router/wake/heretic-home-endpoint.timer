@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep the home WireGuard endpoint current after ISP address changes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+RandomizedDelaySec=10s
+
+[Install]
+WantedBy=timers.target
