@@ -58,7 +58,7 @@ Policies are scoped by authenticated key identity, session family and task profi
 new unrelated sessions default to SUB. Each request captures permission once.
 
 The exact control/telemetry API and installable helper/Claude command assets are in
-[SESSION-BILLING.md](../staging/cli-proxy-api/catalog-fallback/SESSION-BILLING.md).
+[SESSION-BILLING.md](../deploy/cli-proxy-api/catalog-fallback/SESSION-BILLING.md).
 `/routing free|sub|paid` sets policy; empty/toggle cycles FREE → SUB → PAID → FREE.
 The API uses explicit idempotent PUT, never a server-side toggle.
 

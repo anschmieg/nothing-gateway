@@ -93,7 +93,7 @@ response model is retained; canonical discovery advertises `free_only_id`,
 `has_free_routes`, `routing_policy` and available `overrides`.
 
 Implementation: pinned native extension under
-`staging/cli-proxy-api/patches/canonical_catalog`, prepared on reviewed native .9
+`deploy/cli-proxy-api/patches/canonical_catalog`, prepared on reviewed native .9
 by `prepare_canonical_catalog.py`. It is not stock CLIProxyAPI configuration:
 registration, discovery filtering and bounded coordination are custom; native
 translation, auth ownership, execution and cooldown handling remain in use.

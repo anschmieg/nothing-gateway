@@ -12,7 +12,7 @@ intentional assertions exposing current behavior, not tests claimed to pass.
 
 ## P1 — Native-supported nested tool signature escapes the opaque-state guard
 
-Location: [canonical_history.go:87](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_history.go#L87).
+Location: [canonical_history.go:87](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_history.go#L87).
 
 History traversal visits `tool_calls` and `extra_content` but not a tool call's
 `function` object. A signature at
@@ -32,8 +32,8 @@ arguments as protocol state. Regression must verify no alternate executor call.
 
 ## P1 — Final dispatch binding does not fence capability revocation
 
-Locations: [canonical_policy_execution.go:64](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_policy_execution.go#L64),
-[routing_types.go:46](../../staging/cli-proxy-api/patches/canonical_catalog/routing_types.go#L46).
+Locations: [canonical_policy_execution.go:64](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_policy_execution.go#L64),
+[routing_types.go:46](../../deploy/cli-proxy-api/patches/canonical_catalog/routing_types.go#L46).
 
 The immutable binding includes source/cost/owner but omits capabilities and
 registration epoch. After the handler checks a route and captures that binding,
@@ -52,7 +52,7 @@ and the single-use permit must remain intact.
 
 ## P2 — Reasoning-mode compatibility checks presence, not the requested value
 
-Location: [canonical_policy.go:213](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L213).
+Location: [canonical_policy.go:213](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L213).
 
 `reasoning_effort: high` becomes one boolean. Any non-nil `Thinking` declaration
 passes, including `Levels:[low]`. The repro shows `canonicalCompatible=true`
@@ -68,7 +68,7 @@ the native validation semantics before ranking and again at dispatch.
 
 ## P2 — Expired registry quota markers can keep recovered fallback routes excluded
 
-Location: [canonical_similarity.go:309](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_similarity.go#L309).
+Location: [canonical_similarity.go:309](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_similarity.go#L309).
 
 The ranker uses `IsModelQuotaExceededForClient`, which tests map membership, not
 expiry. Native model availability considers the same quota expired after its
@@ -86,7 +86,7 @@ credential state and durable holds. Do not silently clear records or probe.
 
 ## P2 — User-defined tool-schema fields are mistaken for media attachments
 
-Location: [canonical_policy.go:124](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L124).
+Location: [canonical_policy.go:124](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L124).
 
 The shared request scanner recursively visits all JSON, including tool argument
 schemas. A legal text-only tool with a string property named `fileData` causes
@@ -99,7 +99,7 @@ arguments and tool-result data. Preserve conservative actual-media handling.
 
 ## P2 — Unverified publisher namespaces gain an absolute family-continuity class
 
-Location: [canonical_similarity.go:32](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_similarity.go#L32).
+Location: [canonical_similarity.go:32](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_similarity.go#L32).
 
 Similarity discards every publisher namespace, even where canonical identity
 correctly retained it because equivalence was unproven. In a synthetic example,
