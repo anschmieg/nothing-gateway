@@ -169,6 +169,18 @@ replaced only in the NEW scratch tree. Native safety/control tests stay. Their
 fixture explicitly enables the opt-in engine. The capability-revocation repro
 from the earlier adversarial review is retained as a passing regression.
 
+To exercise the separately released OpenAI Responses plugin with canonical-only
+routing and billing enabled, use the patched backend and the published Linux
+plugin artifact with the loopback HTTPS fixture:
+
+```sh
+python3 deploy/cli-proxy-api/catalog-fallback/testing/openai_responses_smoke.py \
+  --binary /tmp/catalog-fallback-native --plugin /path/to/openai-responses.so --canonical
+```
+
+The fixture uses fake credentials and checks that only explicit `PAID` requests
+reach the qualified plugin model. See the [issue report](../../../docs/design/openai-responses-canonical-routing-issue.md).
+
 The isolated harness uses fake credentials, fake benchmark data and loopback TLS
 providers, with mandatory `bwrap --unshare-net` and exact existing plugin hashes:
 

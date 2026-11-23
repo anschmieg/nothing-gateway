@@ -128,6 +128,10 @@ func readFallbackEvidence(ctx context.Context, source string) ([]byte, error) {
 func (r *ModelRegistry) CanonicalFallbackRegistryAvailable(client, route string, now time.Time) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
+	return r.canonicalFallbackRegistryAvailableLocked(client, route, now)
+}
+
+func (r *ModelRegistry) canonicalFallbackRegistryAvailableLocked(client, route string, now time.Time) bool {
 	info := r.clientModelInfos[client][route]
 	if info == nil {
 		return false

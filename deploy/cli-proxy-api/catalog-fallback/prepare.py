@@ -128,6 +128,56 @@ edit('sdk/api/handlers/canonical_policy.go','return p, true, nil','if !free&&r.U
 # Apply curation after native client-format generation and response interceptors.
 edit('sdk/api/handlers/handlers_interceptors.go','if modelID, detail := c.Get(ModelDetailIDContextKey); detail {','if filtered,status:=h.filterProfileModelList(c,body);status!=200 {lifecycle.complete(pluginapi.RequestCompletionFailed,status,nil);c.Writer.Header().Del("Content-Length");c.Header("Content-Type","application/json; charset=utf-8");c.Status(status);_,_=c.Writer.Write(filtered);return}else{body=filtered}\n if modelID, detail := c.Get(ModelDetailIDContextKey); detail {')
 subprocess.run([sys.executable,str(HERE/'prepare_billing.py'),'--source',str(a.output)],check=True)
+# Publish the qualified static Responses route without adding it to canonical pools.
+edit('internal/registry/model_registry.go',
+     'canonicalDiscoveryOnly.Load() && info.CanonicalPolicy!="canonical"',
+     'canonicalDiscoveryOnly.Load() && info.CanonicalPolicy!="canonical" && !r.responsesPluginModelLocked(info.ID)')
+edit('internal/registry/model_registry.go',
+     '!canonicalDiscoveryOnly.Load() || info.CanonicalPolicy=="canonical"',
+     '!canonicalDiscoveryOnly.Load() || info.CanonicalPolicy=="canonical" || r.responsesPluginModelLocked(info.ID)')
+p=a.output/'sdk/api/handlers/canonical_policy.go'
+s=p.read_text()
+anchor='p, handled, invalid := h.canonicalPlan(ctx, model, raw, opts, !image && canonicalChatProtocol(entry))'
+assert s.count(anchor)==2
+first=s.index(anchor)
+second=s.index(anchor,first+len(anchor))
+nonstream="""if pluginCtx, handled, invalid := h.admitResponsesPluginRoute(ctx, entry, exit, model, raw, alt, opts); handled {
+  if invalid != nil { return nil, nil, invalid }
+  body, headers, err := h.executeWithPluginExecutor(pluginCtx, entry, exit, model, model, raw, alt, registry.ResponsesPluginID, opts)
+  if err == nil { headers = billingResponseHeaders(headers, ctx, canonicalPlan{Billing: registry.BillingPaid}) }
+  return body, headers, err
+ }
+ """
+stream="""if pluginCtx, handled, invalid := h.admitResponsesPluginRoute(ctx, entry, exit, model, raw, alt, opts); handled {
+  if invalid != nil {
+   ch := make(chan *interfaces.ErrorMessage, 1)
+   ch <- invalid
+   close(ch)
+   return nil, nil, ch
+  }
+  data, headers, errs := h.streamWithPluginExecutor(pluginCtx, entry, exit, model, model, raw, alt, registry.ResponsesPluginID, opts)
+  if data != nil { headers = billingResponseHeaders(headers, ctx, canonicalPlan{Billing: registry.BillingPaid}) }
+  return data, headers, errs
+ }
+ """
+p.write_text(s[:first]+nonstream+s[first:second]+stream+s[second:])
+edit('sdk/api/handlers/handlers_execution.go',
+     'resp, errExecute := host.ExecutePluginExecutor(execCtx, executorPluginID, req, opts)',
+     """if invalid := validateResponsesPluginDispatch(execCtx, executorPluginID, req.Model); invalid != nil {
+ lifecycle.completeError(execCtx, invalid)
+ return nil, nil, invalid
+ }
+ resp, errExecute := host.ExecutePluginExecutor(execCtx, executorPluginID, req, opts)""")
+edit('sdk/api/handlers/handlers_stream.go',
+     'streamResult, errStream := host.ExecutePluginExecutorStream(execCtx, executorPluginID, req, opts)',
+     """if invalid := validateResponsesPluginDispatch(execCtx, executorPluginID, req.Model); invalid != nil {
+ lifecycle.completeError(execCtx, invalid)
+ errChan := make(chan *interfaces.ErrorMessage, 1)
+ errChan <- invalid
+ close(errChan)
+ return nil, nil, errChan
+ }
+ streamResult, errStream := host.ExecutePluginExecutorStream(execCtx, executorPluginID, req, opts)""")
 manifest={str(p.relative_to(HERE)):hashlib.sha256(p.read_bytes()).hexdigest() for folder in ['host','policy','cmd'] for p in (HERE/folder).glob('*.go')}
 (a.output/'catalog-fallback-draft.json').write_text(json.dumps({'draft':True,'production_changes':False,'files':manifest},indent=2)+'\n')
 print(json.dumps({'draft_prepared':str(a.output),'deployed':False}))
