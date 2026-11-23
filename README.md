@@ -2,6 +2,18 @@
 
 Nothing Gateway runs [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) (CPA) with the CLIProxyAPI Management Center (CPAMC), native routing and billing patches, and provider plugins. Coolify starts CPA directly; the old Tokligence stack is not part of this deployment.
 
+## Deferred review findings
+
+The migration review found no new regressions in the local checks. Two issues
+predate the migration, and live auto-deploy after the rename remains unverified.
+These follow-ups are deferred:
+
+| Finding | What to verify or fix when resumed |
+| --- | --- |
+| **Startup lock ordering.** The [entrypoint](deploy/cli-proxy-api/coolify-entrypoint.sh) rejects a second CPA process, but an isolated test confirmed that the rejected container can overwrite `state/coolify-container-address` first. Operational tools can then target the wrong container. | Acquire the runtime lock before publishing the address and hold it for CPA's lifetime. Verify that a rejected launch leaves the owner's address unchanged. |
+| **Fallback test remains red.** [`TestDraftNativeCoordinatorChoosesEvidenceBeforeFamily`](deploy/cli-proxy-api/catalog-fallback/host/catalog_fallback_handlers_test.go) returned `503` instead of selecting its expected fallback on both the current and pre-migration builds. | Determine whether the fixture is stale or the router rejects a valid fallback. Don't change routing policy or test expectations until the cause is clear. |
+| **Coolify auto-deploy not verified after the rename.** GitHub serves `main` at `anschmieg/nothing-gateway`, but that does not confirm Coolify's live configuration or push delivery. | At the next planned push, confirm the [Coolify app](deploy/cli-proxy-api/COOLIFY.md) tracks the renamed repo at `main`/`HEAD` using `deploy/cli-proxy-api/Dockerfile.coolify`, then verify that the push queues a deployment. |
+
 ## Work on the gateway
 
 | Area | Source |
