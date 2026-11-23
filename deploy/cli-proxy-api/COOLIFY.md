@@ -5,7 +5,8 @@ control plane `https://panel.nothing.pink`. Its API is reachable locally on
 VPS port8000; use the existing private `COOLIFY_ACCESS_TOKEN` from the user's
 `~/.env`, never log it. Public control-plane requests currently return403.
 
-Use `Dockerfile.coolify` with the existing root bind-mounted at the SAME path,
+Use `deploy/cli-proxy-api/Dockerfile.coolify` with the repository root as the
+build context. Use the existing runtime root bind-mounted at the SAME path,
 `/home/agent/cliproxy-staging`. Runtime UID30033 owns existing private state.
 The image contains only system runtime dependencies and the entrypoint; tested
 backend/plugin/panel artifacts remain in the versioned deployment root.

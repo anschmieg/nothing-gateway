@@ -26,7 +26,7 @@ No new proxy or resource-path authentication exception is introduced.
 ## Build and focused verification
 
 ```sh
-python3 staging/cli-proxy-api/free-model-hub/prepare_free_model_hub.py --output /tmp/freehub-build-NEW
+python3 deploy/cli-proxy-api/free-model-hub/prepare_free_model_hub.py --output /tmp/freehub-build-NEW
 cd /tmp/freehub-build-NEW
 GOTOOLCHAIN=go1.26.10 go test ./internal/core ./internal/app ./internal/tasks ./internal/admin ./internal/vendors/opencodezen ./internal/hostbridge -run 'Test(ApplyAdmission|Free[Hh]ub|Foreign|IsForeign|LooksLikeCredential|Scheduler|Page|ValidateManagementBase|Disabled|BridgeClients)' -race -count=1
 GOTOOLCHAIN=go1.26.10 go build -buildmode=c-shared -ldflags '-X main.pluginVersion=0.1.0-tokligence.1' -o /tmp/free-model-hub.so .
@@ -59,7 +59,7 @@ Verified on November 2 with the exact deployed native `.6`, FreeHub `0.1.4`, and
 OpenCode `0.3.1` artifacts using two fake Kilo keys and two fake Cline accounts:
 
 ```sh
-python3 staging/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
+python3 deploy/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
   --binary /tmp/cli-proxy-api-native-oauth-budget \
   --plugin /tmp/free-model-hub-cline-attribution.so \
   --opencode-plugin /tmp/opencode-native-parity-031.so \

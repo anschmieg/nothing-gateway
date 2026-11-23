@@ -138,7 +138,7 @@ go run ./cmd/catalog-fallback-preview \
 The data-only refresh command can be invoked by existing authorized automation:
 
 ```sh
-python3 staging/cli-proxy-api/catalog-fallback/refresh_modelsdev.py \
+python3 deploy/cli-proxy-api/catalog-fallback/refresh_modelsdev.py \
   --output /absolute/path/modelsdev-evidence.json
 ```
 
@@ -153,7 +153,7 @@ required. Operator intent should be expressed as constraints, not model-name ord
 ## Build and verification
 
 ```sh
-python3 staging/cli-proxy-api/catalog-fallback/prepare.py \
+python3 deploy/cli-proxy-api/catalog-fallback/prepare.py \
   --source /tmp/cliproxy-identities-a --output /tmp/catalog-fallback-NEW
 cd /tmp/catalog-fallback-NEW
 go test -race ./internal/catalogfallback ./sdk/api/handlers \
@@ -173,7 +173,7 @@ The isolated harness uses fake credentials, fake benchmark data and loopback TLS
 providers, with mandatory `bwrap --unshare-net` and exact existing plugin hashes:
 
 ```sh
-python3 staging/cli-proxy-api/catalog-fallback/prepare_smoke.py \
+python3 deploy/cli-proxy-api/catalog-fallback/prepare_smoke.py \
   --output /tmp/catalog-fallback-smoke-NEW.py
 python3 /tmp/catalog-fallback-smoke-NEW.py \
   --binary /tmp/catalog-fallback-native \

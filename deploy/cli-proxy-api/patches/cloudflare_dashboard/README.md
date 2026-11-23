@@ -39,6 +39,6 @@ flags. Pending admission still shows checking; rejected admission still offers r
 No auth-store, JWT validation, cookie or key behavior is changed.
 
 Run the actual render-branch regression with:
-`node staging/cli-proxy-api/patches/cloudflare_dashboard/login_transition.test.cjs <prepared-panel-tree>`.
+`node deploy/cli-proxy-api/patches/cloudflare_dashboard/login_transition.test.cjs <prepared-panel-tree>`.
 It covers successful pending/animation/exiting states, genuine failure, pending
 admission and unchanged non-Access transition behavior. Then build the panel.

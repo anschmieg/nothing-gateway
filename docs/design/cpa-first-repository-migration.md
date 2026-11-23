@@ -15,10 +15,9 @@ CLIProxyAPI and CPAMC are the supported gateway. The root Tokligence Docker imag
 
 ## Cutover and rollback
 
-1. Record the current Coolify build settings and deployed CPA/CPAMC artifact pins. Keep the old CPA Dockerfile path usable through the merge so an automatic build on `main` still starts CPA.
-2. Validate the new and compatibility Dockerfile paths from a clean checkout. Run billing, routing, plugin, and management tests with isolated state. Keep the in-flight Responses canonical-routing change separate from this move.
-3. Switch Coolify to `deploy/cli-proxy-api/Dockerfile.coolify` using the repository root as build context. Do not move `/home/agent/cliproxy-staging` or change the binary, panel, or config as part of the switch.
-4. Confirm one runtime owner, health, protected dashboard access, and authenticated model discovery without issuing live inference. Roll back to the previous CPA image and build settings if necessary. Never restore a second OAuth owner.
-5. Once the new path is confirmed on the live deployment, remove the old-path compatibility Dockerfile.
+1. Record the current Coolify build settings and deployed CPA/CPAMC artifact pins. Validate the new Dockerfile from a clean checkout and run billing, routing, plugin, and management tests with isolated state. Keep the in-flight Responses canonical-routing change separate from this move.
+2. Disable automatic deploys during the cutover. Set the Coolify Dockerfile location to `deploy/cli-proxy-api/Dockerfile.coolify` with the repository root as build context. Do not move `/home/agent/cliproxy-staging` or change the binary, panel, or native config.
+3. Merge the validated branch into `main` and deploy it. Confirm one runtime owner, health, protected dashboard access, and authenticated model discovery without issuing live inference. Restore the previous auto-deploy policy after validation.
+4. If the cutover fails, restore the previous CPA image and matching build settings with auto-deploy paused until `main` and the build path agree. Never restore a second OAuth owner.
 
 Historical design records may name paths that were valid when they were written. Use the root README and CPA runbook for current deployment instructions.

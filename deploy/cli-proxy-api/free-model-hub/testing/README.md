@@ -60,7 +60,7 @@ The parent runs, using the exact pending candidate artifacts and a path that
 does not exist (replace all artifact placeholders):
 
 ```sh
-python3 staging/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
+python3 deploy/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
   --binary /absolute/path/to/native-host.5 \
   --plugin /absolute/path/to/free-model-hub.so \
   --opencode-plugin /absolute/path/to/opencode.so \
@@ -71,7 +71,7 @@ cat /tmp/freehub-native-host-smoke-NEW/verdict.json
 Canonical routing + discovery regression (network-isolated, fake credentials):
 
 ```sh
-python3 staging/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
+python3 deploy/cli-proxy-api/free-model-hub/testing/isolated_host_smoke.py \
   --binary /tmp/cliproxy-model-catalog-binary \
   --plugin /tmp/freehub-catalog-routing-b.so \
   --opencode-plugin /tmp/opencode-native-parity-031.so \

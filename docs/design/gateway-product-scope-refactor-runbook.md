@@ -43,7 +43,7 @@ The inventory and public source evaluation are complete. Do not repeat them or b
 
 ### Next child: staging foundation implementation
 
-Scope: add an isolated deployment/config example and operational instructions under `staging/cli-proxy-api/`. Use mainline8.0.49 and native dashboard1.27.0, reverify the actual target-architecture artifact before execution. No Plus, custom UI, wrapper proxy or general test framework. Existing OpenCode staging at `/home/agent/tokligence-staging` and its state/ports are reserved; use separate project/root/ports/storage. Never import production or OpenCode credentials.
+Scope: add an isolated deployment/config example and operational instructions under `deploy/cli-proxy-api/`. Use mainline8.0.49 and native dashboard1.27.0, reverify the actual target-architecture artifact before execution. No Plus, custom UI, wrapper proxy or general test framework. Existing OpenCode staging at `/home/agent/tokligence-staging` and its state/ports are reserved; use separate project/root/ports/storage. Never import production or OpenCode credentials.
 
 Deliver: reproducible pinned staging deployment, bootstrap-only native config, documented management/network protection, disabled unwanted updates and documented retry defaults. Run credential-free startup/dashboard/API-auth/persistence smoke checks; no provider inference. Parent may authorize the concrete staging deployment within the existing user scope after inspecting its manifests. Use public source/documentation for ordinary upstream behavior. Do not modify production artifacts or make live credentials a prerequisite to the empty staging setup.
 

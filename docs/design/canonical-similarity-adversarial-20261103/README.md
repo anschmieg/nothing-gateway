@@ -7,7 +7,7 @@ Nothing should run against production or a real provider.
 Prepare a NEW scratch source from the pinned reviewed .9 base:
 
 ```sh
-python3 staging/cli-proxy-api/prepare_canonical_catalog.py \
+python3 deploy/cli-proxy-api/prepare_canonical_catalog.py \
   --source /tmp/cliproxy-identities-a --output /tmp/similarity-review-NEW
 ```
 

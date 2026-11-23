@@ -2,20 +2,20 @@
 
 Two Python tools, no third-party dependencies (stdlib only):
 
-- `staging/cli-proxy-api/cliproxy_staging.py install` — downloads the two
+- `deploy/cli-proxy-api/cliproxy_staging.py install` — downloads the two
   pinned public release artifacts, verifies SHA-256 **against the downloaded
   bytes** for the **actual host architecture** (`aarch64`/`arm64` → the
   `linux_aarch64` asset, `x86_64` → `linux_amd64`), and installs the **native
   CLIProxyAPI binary** and the **native `management.html` dashboard** into a
   NEW caller-specified root (default `/home/agent/cliproxy-staging`).
-- `staging/cli-proxy-api/cliproxy_staging.py bootstrap` — writes the
+- `deploy/cli-proxy-api/cliproxy_staging.py bootstrap` — writes the
   once-only loopback configuration (bind `127.0.0.1:4195`) with an **empty
   auth state**, privately generated management + client keys (mode `0600`,
   values never printed), no providers, asset auto-update disabled, and the
   `--local-model` launch instruction.
-- `staging/cli-proxy-api/cliproxy_lifecycle.py start|stop|status|smoke` —
+- `deploy/cli-proxy-api/cliproxy_lifecycle.py start|stop|status|smoke` —
   start, stop, inspect, and smoke-check the installed server (below).
-- `staging/cli-proxy-api/providers.yaml` — native v8 provider configuration
+- `deploy/cli-proxy-api/providers.yaml` — native v8 provider configuration
   template for the generic-compatible chat routes (placeholder keys only).
 
 Pins are from `docs/design/upstream-artifact-pins.md`:
@@ -55,21 +55,21 @@ after download: no panel fetch on first access, no 3-hourly auto-update.
 
 ```sh
 # 1. Install into a NEW root (must be nonexistent or empty)
-python3 staging/cli-proxy-api/cliproxy_staging.py install \
+python3 deploy/cli-proxy-api/cliproxy_staging.py install \
   --root /home/agent/cliproxy-staging
 
 # 2. Bootstrap once (idempotent: an existing config is never overwritten)
-python3 staging/cli-proxy-api/cliproxy_staging.py bootstrap \
+python3 deploy/cli-proxy-api/cliproxy_staging.py bootstrap \
   --root /home/agent/cliproxy-staging
 
 # 3. Lifecycle (start/stop/status/smoke)
-python3 staging/cli-proxy-api/cliproxy_lifecycle.py start  \
+python3 deploy/cli-proxy-api/cliproxy_lifecycle.py start  \
   --root /home/agent/cliproxy-staging
-python3 staging/cli-proxy-api/cliproxy_lifecycle.py smoke  \
+python3 deploy/cli-proxy-api/cliproxy_lifecycle.py smoke  \
   --root /home/agent/cliproxy-staging
-python3 staging/cli-proxy-api/cliproxy_lifecycle.py status \
+python3 deploy/cli-proxy-api/cliproxy_lifecycle.py status \
   --root /home/agent/cliproxy-staging
-python3 staging/cli-proxy-api/cliproxy_lifecycle.py stop   \
+python3 deploy/cli-proxy-api/cliproxy_lifecycle.py stop   \
   --root /home/agent/cliproxy-staging
 ```
 
@@ -235,8 +235,8 @@ The correction passed the isolated host fixture; its live effect is untested.
 Once an authorized export of the actual deployment credentials is available:
 
 ```sh
-python3 staging/cli-proxy-api/activate_openrouter.py --env-file <private-deployment-export>
-python3 staging/cli-proxy-api/activate_openrouter.py --env-file <private-deployment-export> --apply
+python3 deploy/cli-proxy-api/activate_openrouter.py --env-file <private-deployment-export>
+python3 deploy/cli-proxy-api/activate_openrouter.py --env-file <private-deployment-export> --apply
 ```
 
 The first command is read-only admission. It reads only the existing OpenRouter

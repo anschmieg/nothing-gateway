@@ -8,7 +8,7 @@ All scores below are synthetic fixtures, not claims about real GLM/MiniMax score
 
 ## P1 — Requirement parser and native translator disagree on duplicate keys
 
-Source: [request.go:18](../../staging/cli-proxy-api/catalog-fallback/policy/request.go#L18).
+Source: [request.go:18](../../deploy/cli-proxy-api/catalog-fallback/policy/request.go#L18).
 `encoding/json` uses the last duplicate member; the pinned native translator uses
 `gjson`, which reads the first. A request containing a nonempty `tools` field
 followed by `tools: []` yields `router_tools=false`, yet the actual native
@@ -23,7 +23,7 @@ Checking capability hashes does not repair a mismatched request interpretation.
 ## P1 — Paid-only models do not reach their planned free alternatives
 
 Source: existing coordinator's `canonicalCanContinue`,
-[canonical_policy.go:309](../../staging/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L309),
+[canonical_policy.go:309](../../deploy/cli-proxy-api/patches/canonical_catalog/canonical_policy.go#L309),
 retained by the new draft preparation. The planner constructs both original
 `:free` and alternate `:free` stages. With zero direct free routes but an available
 compatible alternate, native resolution returns local400 `model_not_found` for
@@ -37,7 +37,7 @@ advertising a constructed `free_only_id` cannot establish usable free inference.
 
 ## P2 — Average benchmark gains can conceal a catastrophic relevant regression
 
-Source: [evidence.go:116](../../staging/cli-proxy-api/catalog-fallback/policy/evidence.go#L116)
+Source: [evidence.go:116](../../deploy/cli-proxy-api/catalog-fallback/policy/evidence.go#L116)
 and the final mean-based risk score at line132. Two same-category benchmark
 scores are80/20 for the requested model. Candidate A scores0/100; candidate B
 scores79/19. The ranker prefers A: its80-point regression is canceled by an80-point
@@ -53,7 +53,7 @@ Confidence weighting alone cannot fix a wrongly defined utility function.
 
 ## P2 — A new unmapped route erases trusted evidence and can promote a worse model
 
-Source: [policy.go:191](../../staging/cli-proxy-api/catalog-fallback/policy/policy.go#L191).
+Source: [policy.go:191](../../deploy/cli-proxy-api/catalog-fallback/policy/policy.go#L191).
 One unresolved provider/source sets `allKnown=false` for the whole canonical group.
 In the repro, the known-worse model initially has risk0.55 and ranks behind a
 candidate at0.265. Adding one healthy route with the same canonical ID but an
@@ -69,7 +69,7 @@ and the unknown prior currently interact to produce an optimism loophole.
 
 ## P2 — Benchmark aliases inflate independent support and bypass strict evidence
 
-Source: [evidence.go:44](../../staging/cli-proxy-api/catalog-fallback/policy/evidence.go#L44).
+Source: [evidence.go:44](../../deploy/cli-proxy-api/catalog-fallback/policy/evidence.go#L44).
 Punctuation is normalized, but known semantic aliases are not. `BFCL` and
 `Berkeley Function Calling Leaderboard` are both recognized by the task taxonomy,
 yet count as different independent benchmarks. Duplicating the same result under
@@ -84,7 +84,7 @@ weights remain policy heuristics, not calibrated probabilities of task success.
 
 ## P2 — Gemini forced tool-choice requirements are omitted
 
-Source: [request.go:158](../../staging/cli-proxy-api/catalog-fallback/policy/request.go#L158)
+Source: [request.go:158](../../deploy/cli-proxy-api/catalog-fallback/policy/request.go#L158)
 and surrounding Gemini request extraction. A valid `toolConfig.functionCallingConfig`
 with mode`ANY` and allowed function names is not mapped into `ToolChoice`.
 The repro has `Tools=true`, `ToolChoice=false`, and admits a candidate whose

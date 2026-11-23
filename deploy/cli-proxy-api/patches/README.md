@@ -16,8 +16,8 @@ and one credential, and management test endpoints remain outside admission.
 Prepare into a NEW separate source directory (never edits input/deploys):
 
 ```sh
-python3 staging/cli-proxy-api/prepare_provider_patch.py --source /tmp/m2-eval/backend --output /tmp/cliproxy-provider-budget-source
-go test staging/cli-proxy-api/patches/provider_dispatch_budget.go staging/cli-proxy-api/patches/provider_dispatch_budget_test.go -race -count=1
+python3 deploy/cli-proxy-api/prepare_provider_patch.py --source /tmp/m2-eval/backend --output /tmp/cliproxy-provider-budget-source
+go test deploy/cli-proxy-api/patches/provider_dispatch_budget.go deploy/cli-proxy-api/patches/provider_dispatch_budget_test.go -race -count=1
 ```
 
 The named custom test uses only loopback servers and checks physical origin1 /

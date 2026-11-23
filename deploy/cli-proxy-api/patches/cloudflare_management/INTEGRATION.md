@@ -155,8 +155,8 @@ Prepare into the NEW separate source directory (never edits input or deploys),
 copy both Go files and apply the anchor insert, then run:
 
 ```sh
-# copy staging/cli-proxy-api/patches/cloudflare_management/cloudflare_access.go and
-# staging/cli-proxy-api/patches/cloudflare_management/cloudflare_access_test.go into
+# copy deploy/cli-proxy-api/patches/cloudflare_management/cloudflare_access.go and
+# deploy/cli-proxy-api/patches/cloudflare_management/cloudflare_access_test.go into
 # /tmp/cliproxy-cloudflare-alpha-source/internal/api/handlers/management/
 # apply the single 3-line insert in .../management/handler.go (anchor above)
 cd /tmp/cliproxy-cloudflare-alpha-source

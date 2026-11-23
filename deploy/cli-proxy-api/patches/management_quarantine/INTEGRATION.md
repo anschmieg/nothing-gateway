@@ -141,8 +141,8 @@ both Go files into package `management`, apply the three-line insert above,
 then:
 
 ```sh
-python3 staging/cli-proxy-api/prepare_provider_patch.py --source /tmp/m2-eval/backend --output /tmp/cliproxy-quarantine-source
-# copy staging/cli-proxy-api/patches/management_quarantine/*.go into
+python3 deploy/cli-proxy-api/prepare_provider_patch.py --source /tmp/m2-eval/backend --output /tmp/cliproxy-quarantine-source
+# copy deploy/cli-proxy-api/patches/management_quarantine/*.go into
 # /tmp/cliproxy-quarantine-source/internal/api/handlers/management/
 # apply the anchor insert in .../management/api_tools.go
 go test ./internal/api/handlers/management/ -run 'TestManagementQuarantine|TestAPICallDisabledAuthQuarantinedBeforeUpstream|TestAPICallEnabledAuthStillReachesUpstream|TestVerifyInferenceRefusesDisabledCredential' -race -count=1
