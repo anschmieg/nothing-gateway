@@ -12,6 +12,12 @@ The image contains only system runtime dependencies and the entrypoint; tested
 backend/plugin/panel artifacts remain in the versioned deployment root.
 No legacy gateway executable, credential import, second database or proxy layer.
 
+Track Git branch `main`, use `HEAD` (no commit override), and enable automatic
+deploys on push. Enable Coolify's **Consistent Container Name** setting without
+a custom name: this makes Coolify stop the old container before starting its
+replacement. Overlapping containers cannot acquire the same runtime lock, so
+each successful redeploy includes a brief restart rather than a rolling swap.
+
 Before first native container launch: verify/quiesce the owned host service,
 retain rollback configuration, change native server binding to0.0.0.0:8080,
 apply tested backend/panel, preserve native keys/cooldowns and write

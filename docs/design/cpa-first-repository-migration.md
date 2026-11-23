@@ -16,8 +16,8 @@ CLIProxyAPI and CPAMC are the supported gateway. The root Tokligence Docker imag
 ## Cutover and rollback
 
 1. Record the current Coolify build settings and deployed CPA/CPAMC artifact pins. Validate the new Dockerfile from a clean checkout and run billing, routing, plugin, and management tests with isolated state. Keep the in-flight Responses canonical-routing change separate from this move.
-2. Disable automatic deploys during the cutover. Set the Coolify Dockerfile location to `deploy/cli-proxy-api/Dockerfile.coolify` with the repository root as build context. Do not move `/home/agent/cliproxy-staging` or change the binary, panel, or native config.
-3. Merge the validated branch into `main` and deploy it. Confirm one runtime owner, health, protected dashboard access, and authenticated model discovery without issuing live inference. Restore the previous auto-deploy policy after validation.
+2. Set the Coolify Dockerfile location to `deploy/cli-proxy-api/Dockerfile.coolify` with the repository root as build context. Track `main` at `HEAD`, not a pinned SHA. Enable consistent container naming so deploys stop the old process before starting the new one. Do not move `/home/agent/cliproxy-staging` or change the binary, panel, or native config.
+3. Enable automatic deploys for the cutover push, then merge the validated branch into `main`. Confirm that Coolify queued the merged revision, then check health, protected dashboard access, and authenticated model discovery without issuing live inference.
 4. If the cutover fails, restore the previous CPA image and matching build settings with auto-deploy paused until `main` and the build path agree. Never restore a second OAuth owner.
 
 Historical design records may name paths that were valid when they were written. Use the root README and CPA runbook for current deployment instructions.
