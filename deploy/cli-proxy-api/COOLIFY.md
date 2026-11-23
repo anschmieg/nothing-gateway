@@ -50,3 +50,15 @@ paths, preserves methods/body/query/If-Match and creates no proxy process.
 Public-host `/` redirects to `/dashboard`. `/management.html` remains available
 for direct native clients and redirects browsers on this host to `/dashboard`.
 Existing Access application/personal-email policy stays unchanged.
+
+## CPA and CPAMC artifact upgrades
+
+Git push deployments rebuild the runtime image but do not upgrade the mounted
+CPA binary or CPAMC panel. Build upgrades from pinned upstream source with the
+gateway's host and Cloudflare Access patches applied, verify the release pair
+and plugins in isolation, and retain the previous artifacts for rollback. The
+stock panel updater would replace the patched dashboard asset.
+
+The separately published [OpenAI Responses plugin](https://github.com/anschmieg/cpa-openai-responses)
+has its own Plugin Store registry. The [canonical routing issue report](../../docs/design/openai-responses-canonical-routing-issue.md)
+records the host-side requirements and verification for this provider.

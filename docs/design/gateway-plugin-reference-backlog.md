@@ -7,6 +7,9 @@ priority: OpenCode Zen, then Cline, then other free-tier providers.
 
 Do not inspect these merely because they are listed here; retain for later.
 
+The [gateway plugin and deployment evaluation plan](gateway-plugin-evaluation-plan.md)
+records the broader research request and its scope.
+
 | Repository | User-supplied description |
 | --- | --- |
 | [conversun/cliproxy-plugin-opencode-cloak](https://github.com/conversun/cliproxy-plugin-opencode-cloak) | CLIProxyAPI request_interceptor plugin: cloaks opencode CLI requests as official Claude Code (billing header + surgical system-prompt sanitize). |
