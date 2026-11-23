@@ -13,7 +13,7 @@ mock.module('@/services/storage/secureStorage',()=>({obfuscatedStorage:{getItem:
 mock.module('@/utils/encryption',()=>({isCurrentObfuscated:()=>true}));
 mock.module('@/stores/useConfigStore',()=>({useConfigStore:{getState:()=>({clearCache:()=>{},fetchConfig:async()=>{if(rejected)throw new Error('fixture unauthorized');return {};}})}}));
 mock.module('@/stores/useModelsStore',()=>({useModelsStore:{getState:()=>({clearCache:()=>{}})}}));
-mock.module('@/stores/useQuotaStore',()=>({useQuotaStore:{getState:()=>({clearQuotaCache:()=>{}})}}));
+mock.module('@/stores/useQuotaStore',()=>({useQuotaStore:{getState:()=>({clearQuotaCache:()=>{},clearCodexCreditOverageOperations:()=>{}})}}));
 const {useAuthStore}=await import('../src/stores/useAuthStore');
 beforeEach(()=>{memory.clear();configurations.length=0;redirects.length=0;rejected=false;location.protocol='https:';location.hostname='code.nothing.pink';location.origin='https://code.nothing.pink';useAuthStore.setState({isAuthenticated:false,managementKey:'',apiBase:'',rememberPassword:false});});
 test('Access login pins origin and sends/persists no management key',async()=>{

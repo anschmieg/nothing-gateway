@@ -3,16 +3,21 @@
 No management secret, fake key, authentication bypass, or provider requests.
 """
 import argparse,pathlib,subprocess,tarfile,tempfile,hashlib,json
-PIN='4e4aeff23f9f82b3ccdbe48b2e774d5dc918234e'
+PINS = {
+    '4e4aeff23f9f82b3ccdbe48b2e774d5dc918234e': 'v1.27.0',
+    '3128b0ba10ae425d243f52e865b96e7e7c518291': 'v1.29.1',
+}
 def replace(text,anchor,new):
  if text.count(anchor)!=1:raise RuntimeError('Pinned dashboard anchor differs')
  return text.replace(anchor,new)
 def main():
  p=argparse.ArgumentParser();p.add_argument('--source',required=True,type=pathlib.Path);p.add_argument('--output',required=True,type=pathlib.Path);a=p.parse_args()
  if a.output.exists():p.error('Output exists; refusing replay')
- if subprocess.check_output(['git','-C',str(a.source),'rev-parse','HEAD'],text=True).strip()!=PIN:p.error('Unexpected dashboard source')
+ pin = subprocess.check_output(['git','-C',str(a.source),'rev-parse','HEAD'],text=True).strip()
+ if pin not in PINS:p.error('Unexpected dashboard source')
+ version = PINS[pin]
  with tempfile.TemporaryFile() as f:
-  subprocess.run(['git','-C',str(a.source),'archive',PIN],stdout=f,check=True);f.seek(0);a.output.mkdir(mode=0o700)
+  subprocess.run(['git','-C',str(a.source),'archive',pin],stdout=f,check=True);f.seek(0);a.output.mkdir(mode=0o700)
   with tarfile.open(fileobj=f) as archive:archive.extractall(a.output,filter='data')
  utils=a.output/'src/utils/cloudflareAccess.ts'
  utils.write_text("export const isCloudflareAccessHost = (): boolean => typeof window !== 'undefined' && window.location.protocol === 'https:' && window.location.hostname === 'code.nothing.pink';\n")
@@ -47,6 +52,6 @@ def main():
  t="import { isCloudflareAccessHost } from '@/utils/cloudflareAccess';\n"+t
  t=replace(t,"  const base = normalizeApiBase(apiBase);", "  // /admin protects management calls; plugin resources are native origin-root routes.\n  if (isCloudflareAccessHost() && trimmed.startsWith('/v0/resource/plugins/')) {\n    return window.location.origin + trimmed;\n  }\n  const base = normalizeApiBase(apiBase);")
  resources.write_text(t)
- (a.output/'cloudflare-dashboard-manifest.json').write_text(json.dumps({'source_commit':PIN,'access_host':'code.nothing.pink','auth_store_input_sha256':before,'patched':{str(resources.relative_to(a.output)):hashlib.sha256(resources.read_bytes()).hexdigest(),str(f.relative_to(a.output)):hashlib.sha256(f.read_bytes()).hexdigest(),str(s.relative_to(a.output)):hashlib.sha256(s.read_bytes()).hexdigest()},'management_key_in_browser':False},indent=2))
- print(json.dumps({'prepared':str(a.output),'source':PIN}))
+ (a.output/'cloudflare-dashboard-manifest.json').write_text(json.dumps({'source_commit':pin,'version':version,'access_host':'code.nothing.pink','auth_store_input_sha256':before,'patched':{str(path.relative_to(a.output)):hashlib.sha256(path.read_bytes()).hexdigest() for path in (resources, f, s)},'management_key_in_browser':False},indent=2))
+ print(json.dumps({'prepared':str(a.output),'source':pin,'version':version}))
 if __name__=='__main__':main()
