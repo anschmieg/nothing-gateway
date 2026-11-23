@@ -1,11 +1,16 @@
 """Model-ID routing for the existing gateway. Never falls back for local IDs."""
 import asyncio
+from contextlib import AsyncExitStack
+from datetime import timezone
 from email.parser import BytesParser
 from email.policy import default
+from email.utils import parsedate_to_datetime
 import ipaddress
 import json
+import math
 import os
 from pathlib import Path
+import re
 import sqlite3
 import zlib
 import time
@@ -28,8 +33,151 @@ ALIASES = {
     'local/minimax-h3-high': ('minimax-h3-quality', 'video'),
     'local/minimax-h3-image': ('minimax-h3-image', 'image'),
 }
+TEXT_ENDPOINTS = ('/v1/chat/completions', '/v1/responses', '/v1/messages')
 HOP = {'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
        'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length'}
+
+# Leave time for the controller to return an HTTP admission error before SSE
+# commits the response. Include authentication and wake in the edge budget.
+FIRST_STREAM_PING = 85
+STREAM_PING_INTERVAL = 15
+STREAM_PEER_CHECK_INTERVAL = 0.25
+STREAM_ERROR_BODY_TIMEOUT = 10
+STREAM_PARTIAL_FRAME_TIMEOUT = 45
+SSE_INSPECTION_LIMIT = 1024 * 1024
+MESSAGES_PING = b'event: ping\ndata: {"type":"ping"}\n\n'
+OPENAI_PING = b': keep-alive\n\n'
+UNAVAILABLE_ERROR_BODY = 'Upstream error body was unavailable.'
+UTF8_BOM = b'\xef\xbb\xbf'
+SSE_LINE_END = re.compile(rb'[\r\n]')
+SSE_TERMINAL_EVENTS = {
+    '/v1/messages': ('message_stop', 'error'),
+    '/v1/responses': ('response.completed', 'response.failed', 'response.incomplete', 'error'),
+    '/v1/chat/completions': ('error',),
+}
+
+
+class SSEFraming:
+    """Inspect a bounded copy of each event while forwarding bytes immediately."""
+
+    def __init__(self, path):
+        self.path = path
+        self.at_boundary = True
+        self.received_data_event = False
+        self.received_terminal_event = False
+        self.next_sequence_number = 0
+        self.bom_prefix = b''
+        self.line = bytearray()
+        self.event_name = ''
+        self.event_data = bytearray()
+        self.event_data_over_limit = False
+        self.after_cr = False
+        self.skip_optional_lf = False
+
+    def feed(self, chunk):
+        if self.bom_prefix is not None:
+            chunk = self.bom_prefix + chunk
+            if len(chunk) < len(UTF8_BOM) and UTF8_BOM.startswith(chunk):
+                self.bom_prefix = chunk
+                return b''
+            self.bom_prefix = None
+            chunk = chunk.removeprefix(UTF8_BOM)
+        if self.skip_optional_lf and chunk:
+            chunk = chunk.removeprefix(b'\n')
+            self.skip_optional_lf = False
+
+        start = 0
+        for match in SSE_LINE_END.finditer(chunk):
+            end = match.start()
+            if start < end:
+                self.add_line_bytes(chunk, start, end)
+            start = match.end()
+            ending = match.group()
+            if ending == b'\n' and self.after_cr:
+                self.after_cr = False
+                continue
+            self.after_cr = ending == b'\r'
+            if self.line:
+                self.read_field()
+                self.line.clear()
+            else:
+                self.at_boundary = True
+                self.finish_event()
+        if start < len(chunk):
+            self.add_line_bytes(chunk, start, len(chunk))
+        return chunk
+
+    def add_line_bytes(self, chunk, start, end):
+        self.at_boundary = False
+        self.after_cr = False
+        # Keep enough after the field prefix to identify an oversized data line.
+        limit = SSE_INSPECTION_LIMIT + len(b'data: ')
+        self.line.extend(chunk[start:min(end, start + limit - len(self.line))])
+
+    def read_field(self):
+        field, _, value = self.line.partition(b':')
+        value = value.removeprefix(b' ')
+        if field == b'event':
+            self.event_name = value.decode('utf-8', errors='replace') if len(value) < 64 else ''
+        elif field == b'data' and not self.event_data_over_limit:
+            if len(self.event_data) + len(value) + 1 > SSE_INSPECTION_LIMIT:
+                self.event_data.clear()
+                self.event_data_over_limit = True
+            else:
+                self.event_data.extend(value)
+                self.event_data.append(10)  # SSE joins consecutive data lines with LF.
+
+    def finish_event(self):
+        if self.event_data or self.event_data_over_limit:
+            self.received_data_event = True
+            self.received_terminal_event |= self.is_terminal_event()
+        self.event_name = ''
+        self.event_data.clear()
+        self.event_data_over_limit = False
+
+    def is_terminal_event(self):
+        terminal_names = SSE_TERMINAL_EVENTS[self.path]
+        if self.event_data_over_limit:
+            return self.event_name in terminal_names
+        chat = self.path == '/v1/chat/completions'
+        if chat and self.event_data.strip() == b'[DONE]':
+            return True
+        try:
+            value = json.loads(self.event_data)
+        except (ValueError, RecursionError):
+            return False
+        if not isinstance(value, dict):
+            return False
+        if self.path == '/v1/responses':
+            sequence = value.get('sequence_number')
+            if type(sequence) is int:
+                self.next_sequence_number = max(self.next_sequence_number, sequence + 1)
+        if chat and isinstance(value.get('error'), dict):
+            return True
+        return self.event_name in terminal_names or value.get('type') in terminal_names
+
+    def before_insertion(self):
+        if not self.after_cr:
+            return b''
+        # CR already ends the line. Complete a possible split CRLF before
+        # injecting, and consume the upstream LF if it arrives later.
+        self.after_cr = False
+        self.skip_optional_lf = True
+        return b'\n'
+
+
+def retry_after_seconds(value):
+    if not value:
+        return None
+    if value.isascii() and value.isdecimal():
+        return int(value) if len(value) <= 9 else None
+    try:
+        date = parsedate_to_datetime(value)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=timezone.utc)
+        return max(0, math.ceil(date.timestamp() - time.time()))
+    except (ValueError, OverflowError, OSError):
+        return None
 
 def headers(source):
     return {k: v for k, v in source.items() if k.lower() not in HOP}
@@ -225,7 +373,43 @@ def remember(app, value, kind):
         app['db'].execute('INSERT OR REPLACE INTO media VALUES (?,?)', (ident, kind))
     app['db'].commit()
 
-async def relay(request, url, body, local=False, kind=None, decoded_body=False, local_translation=False):
+async def wait_with_ping(awaitable, delay, ping):
+    pending = asyncio.ensure_future(awaitable)
+    try:
+        while not (await asyncio.wait((pending,), timeout=delay))[0]:
+            await ping()
+            delay = STREAM_PING_INTERVAL
+        return pending.result()
+    finally:
+        if not pending.done():
+            pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+
+
+async def relay(request, url, body, *, first_ping_deadline=None, **options):
+    forward = relay_upstream(request, url, body, first_ping_deadline=first_ping_deadline, **options)
+    if first_ping_deadline is None:
+        return await forward
+
+    pending = asyncio.create_task(forward)
+    try:
+        # Scope disconnect cancellation to streaming requests. Buffered media
+        # requests may need to save a returned ID even if the caller leaves.
+        while True:
+            transport = request.transport
+            if transport is None or transport.is_closing():
+                return web.Response(status=499)
+            done, _ = await asyncio.wait((pending,), timeout=STREAM_PEER_CHECK_INTERVAL)
+            if done:
+                return pending.result()
+    finally:
+        if not pending.done():
+            pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+
+
+async def relay_upstream(request, url, body, local=False, kind=None, decoded_body=False,
+                         local_translation=False, first_ping_deadline=None):
     local_job_id = request.app.get('wake_id') if local else None
     outgoing = headers(request.headers)
     if decoded_body:
@@ -235,23 +419,89 @@ async def relay(request, url, body, local=False, kind=None, decoded_body=False, 
         outgoing.pop('x-forwarded-prefix', None)
         outgoing['Authorization'] = 'Bearer ' + Path(request.app['key_path']).read_text().strip()
         outgoing = {k: v for k, v in outgoing.items() if k.lower() != 'content-encoding'}
-        outgoing.pop('Accept-Encoding', None)
-        outgoing['Accept-Encoding'] = 'identity'
-    if local_translation:
+    if local or local_translation or first_ping_deadline is not None:
         outgoing = {k:v for k,v in outgoing.items() if k.lower() != 'accept-encoding'}
         outgoing['Accept-Encoding'] = 'identity'
-    response_started = False
+    downstream = None
+    sent_ping = False
+    framing = SSEFraming(request.path)
+    messages = request.path == '/v1/messages'
+    native_cors = request.get('native_cors', {})
+    may_commit_early = ('Origin' not in request.headers or
+                        any(key.lower() == 'access-control-allow-origin' for key in native_cors))
+
+    async def read_error_body(response):
+        if first_ping_deadline is None:
+            return await response.read()
+        try:
+            return await asyncio.wait_for(response.read(), STREAM_ERROR_BODY_TIMEOUT)
+        except (ClientError, TimeoutError):
+            return None
+
+    async def ping():
+        nonlocal downstream, sent_ping
+        if downstream is None:
+            downstream = web.StreamResponse(headers={'Content-Type': 'text/event-stream',
+                                                      'Cache-Control': 'no-cache, no-transform'})
+            downstream.headers.update(native_cors)
+            await downstream.prepare(request)
+        await downstream.write(framing.before_insertion() + (MESSAGES_PING if messages else OPENAI_PING))
+        sent_ping = True
+
+    async def stream_error(detail=None, retry_after=None):
+        if not isinstance(detail, dict):
+            detail = {}
+        detail = {key: detail[key] for key in ('message', 'type', 'code')
+                  if isinstance(detail.get(key), str)}
+        detail.setdefault('type', 'api_error')
+        detail.setdefault('message', 'Upstream did not return an event stream.')
+        delay = retry_after_seconds(retry_after)
+        if delay is not None:
+            detail['retry_after'] = delay
+        event = 'event: error\n'
+        if messages:
+            payload = {'type': 'error', 'error': detail}
+        elif request.path == '/v1/responses':
+            payload = {'type': 'error', 'sequence_number': framing.next_sequence_number, 'param': None,
+                       'code': detail.get('code'), 'message': detail['message']}
+            if 'retry_after' in detail:
+                payload['retry_after'] = detail['retry_after']
+        else:
+            event = ''
+            payload = {'error': detail}
+        await downstream.write(framing.before_insertion() + f'{event}data: {json.dumps(payload)}\n\n'.encode())
+        await downstream.write_eof()
+        return downstream
+
     try:
-        async with request.app['session'].request(request.method, url,
-                headers=outgoing, data=body, allow_redirects=False) as response:
+        async with AsyncExitStack() as upstream:
+            opening = upstream.enter_async_context(request.app['session'].request(
+                request.method, url, headers=outgoing, data=body, allow_redirects=False))
+            if first_ping_deadline is None or not may_commit_early:
+                response = await opening
+            else:
+                delay = max(0, first_ping_deadline - asyncio.get_running_loop().time())
+                response = await wait_with_ping(opening, delay, ping)
+            sse = (response.status == 200 and response.content_type == 'text/event-stream'
+                   and response.headers.get('Content-Encoding', 'identity').lower() == 'identity')
+            if sent_ping and response.status < 400 and not sse:
+                return await stream_error(retry_after=response.headers.get('Retry-After'))
             if local_translation and response.status >= 400 and 'application/json' in response.headers.get('Content-Type', ''):
-                raw = await response.read()
+                raw = await read_error_body(response)
                 try:
-                    value = json.loads(raw)
-                    detail = value.get('error', {}) if isinstance(value, dict) else {}
-                    metadata = public_error_metadata(response.status, detail.get('message')) if isinstance(detail, dict) else None
+                    value = json.loads(raw) if raw is not None else None
                 except ValueError:
-                    metadata = None
+                    value = None
+                if not isinstance(value, dict):
+                    detail = {'type': 'api_error', 'message': UNAVAILABLE_ERROR_BODY}
+                    if sent_ping:
+                        return await stream_error(detail, response.headers.get('Retry-After'))
+                    reply_headers = headers(response.headers)
+                    reply_headers = {k: v for k, v in reply_headers.items()
+                                     if k.lower() not in ('content-type', 'content-encoding')}
+                    return web.json_response({'error': detail}, status=response.status, headers=reply_headers)
+                detail = value.get('error')
+                metadata = public_error_metadata(response.status, detail.get('message')) if isinstance(detail, dict) else None
                 reply_headers = headers(response.headers)
                 if metadata is not None:
                     code, retry_after = metadata
@@ -260,34 +510,88 @@ async def relay(request, url, body, local=False, kind=None, decoded_body=False, 
                     if retry_after is not None and 'Retry-After' not in response.headers:
                         reply_headers['Retry-After'] = str(retry_after)
                     reply_headers = {k:v for k,v in reply_headers.items() if k.lower() != 'content-type'}
+                if sent_ping:
+                    return await stream_error(detail, response.headers.get('Retry-After') or reply_headers.get('Retry-After'))
+                if metadata is not None:
                     return web.json_response(value, status=response.status, headers=reply_headers)
                 return web.Response(body=raw, status=response.status, headers=reply_headers)
             if local and 'application/json' in response.headers.get('Content-Type', ''):
-                raw = await response.read()
-                value = json.loads(raw)
+                raw = await read_error_body(response) if response.status >= 400 else await response.read()
+                try:
+                    value = json.loads(raw) if raw is not None else None
+                except ValueError:
+                    if response.status < 400:
+                        raise
+                    value = None
+                if response.status >= 400 and not isinstance(value, dict):
+                    value = {'error': {'type': 'api_error', 'message': UNAVAILABLE_ERROR_BODY}}
                 error_value = value.get('error') if isinstance(value, dict) else None
                 code = error_value.get('code') if isinstance(error_value, dict) else None
                 audit(request.app, 'local_response', job_id=local_job_id, status=response.status,
                       reason=code if code in ('model_not_ready', 'model_loading', 'resource_not_ready', 'concurrency_limit_exceeded', 'resource_busy', 'resource_conflict', 'initialization_failed', 'resource_unavailable') else
                       ('none' if response.status < 400 else 'upstream_error'))
+                if sent_ping:
+                    return await stream_error(error_value, response.headers.get('Retry-After'))
                 if response.status < 300 and kind and request.method == 'POST':
                     remember(request.app, value, kind)
                 reply_headers = {'Cache-Control': 'no-store'}
                 if 'Retry-After' in response.headers:
                     reply_headers['Retry-After'] = response.headers['Retry-After']
                 return web.json_response(value, status=response.status, headers=reply_headers)
-            downstream = web.StreamResponse(status=response.status, headers=headers(response.headers))
-            downstream.headers.update(request.get('native_cors', {}))
-            await downstream.prepare(request)
-            response_started = True
-            async for chunk in response.content.iter_any():
-                await downstream.write(chunk)
+            if sent_ping and not sse:
+                retry_after = response.headers.get('Retry-After')
+                if response.content_type == 'application/json' or response.content_type.endswith('+json'):
+                    raw = await read_error_body(response)
+                    try:
+                        value = json.loads(raw) if raw is not None else None
+                    except ValueError:
+                        value = None
+                    detail = value.get('error') if isinstance(value, dict) else None
+                    if detail is None and response.content_type == 'application/problem+json' and isinstance(value, dict):
+                        detail = {'message': value.get('detail') or value.get('title')}
+                    return await stream_error(detail, retry_after)
+                return await stream_error(retry_after=retry_after)
+            if downstream is None:
+                downstream = web.StreamResponse(status=response.status, headers=headers(response.headers))
+                downstream.headers.update(native_cors)
+                await downstream.prepare(request)
+            if first_ping_deadline is not None and sse:
+                delay = (STREAM_PING_INTERVAL if sent_ping else
+                         max(0, first_ping_deadline - asyncio.get_running_loop().time()))
+                while True:
+                    if framing.at_boundary:
+                        chunk = await wait_with_ping(response.content.readany(), delay, ping)
+                    else:
+                        chunk = await asyncio.wait_for(response.content.readany(), STREAM_PARTIAL_FRAME_TIMEOUT)
+                    if not chunk:
+                        break
+                    forwarded = framing.feed(chunk)
+                    if forwarded:
+                        await downstream.write(forwarded)
+                        delay = STREAM_PING_INTERVAL
+                if not framing.at_boundary:
+                    # An error frame could finish and dispatch incomplete data.
+                    if request.transport:
+                        request.transport.close()
+                    return downstream
+                if not framing.received_terminal_event:
+                    message = ('Upstream closed before sending a terminal event.' if framing.received_data_event
+                               else 'Upstream closed without sending events.')
+                    return await stream_error({'code': 'incomplete_stream', 'message': message})
+            else:
+                async for chunk in response.content.iter_any():
+                    await downstream.write(chunk)
             await downstream.write_eof()
             return downstream
     except (ClientError, TimeoutError, OSError, ValueError):
         if local:
             audit(request.app, 'local_transport_error', job_id=local_job_id)
-        if response_started:
+        if downstream is not None and downstream.prepared:
+            if sent_ping and not framing.received_data_event and framing.at_boundary:
+                try:
+                    return await stream_error({'message': 'Upstream failed before sending model data.'})
+                except OSError:
+                    pass
             request.transport.close() if request.transport else None
             return downstream
         return error('Local PC unavailable; no cloud fallback attempted.' if local else 'Gateway upstream unavailable.', 503 if local else 502)
@@ -338,6 +642,7 @@ async def websocket(request):
     return downstream
 
 async def handle(request):
+    first_ping_deadline = asyncio.get_running_loop().time() + FIRST_STREAM_PING
     path = request.path
     if request.headers.get('Upgrade', '').lower() == 'websocket':
         return await websocket(request)
@@ -385,12 +690,15 @@ async def handle(request):
     parts = path.strip('/').split('/')
     known_media = False
     kind = None
+    keepalive_deadline = (first_ping_deadline if request.method == 'POST' and path in TEXT_ENDPOINTS
+                          and isinstance(parsed, dict) and parsed.get('stream') is True else None)
     if len(parts) >= 3 and parts[:2] in (['v1', 'videos'], ['v1', 'images']):
         row = request.app['db'].execute('SELECT kind FROM media WHERE id=?', (parts[2],)).fetchone()
         kind = row[0] if row else None
         known_media = bool(row) and ((parts[1] == 'videos') == (kind == 'video'))
     if not explicit_local and not known_media:
-        return await relay(request, (await asyncio.to_thread(cloud_url)) + request.rel_url.path_qs, body)
+        return await relay(request, (await asyncio.to_thread(cloud_url)) + request.rel_url.path_qs,
+                           body, first_ping_deadline=keepalive_deadline)
     try:
         checked = await authenticated_catalog(request, canonical=True)
     except (ClientError, TimeoutError, OSError, ValueError):
@@ -401,7 +709,7 @@ async def handle(request):
         if model not in ALIASES:
             return error('Unknown local model; no cloud fallback attempted.', 404)
         backend, kind = ALIASES[model]
-        allowed = {'llm': ('/v1/chat/completions', '/v1/responses', '/v1/messages'),
+        allowed = {'llm': TEXT_ENDPOINTS,
                    'video': ('/v1/videos',), 'image': ('/v1/images/generations',)}
         if request.method != 'POST' or path not in allowed[kind]:
             return error('Local model does not support this endpoint.', 400)
@@ -433,14 +741,15 @@ async def handle(request):
                 parsed['model'] = native_model
                 body = json.dumps(parsed).encode()
             return await relay(request, (await asyncio.to_thread(cloud_url)) + request.rel_url.path_qs,
-                               body, decoded_body=native_model != model, local_translation=True)
+                               body, decoded_body=native_model != model, local_translation=True,
+                               first_ping_deadline=keepalive_deadline)
         parsed['model'] = backend
         body = json.dumps(parsed).encode()
         unavailable = await ensure_controller(request.app)
         if unavailable is not None:
             return unavailable
     return await relay(request, request.app['local_url'] + request.rel_url.path_qs,
-                       body, local=True, kind=kind)
+                       body, local=True, kind=kind, first_ping_deadline=keepalive_deadline)
 
 
 @web.middleware

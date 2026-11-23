@@ -15,6 +15,32 @@ keeps dispatch local even when the discovery catalog hides an unavailable route;
 native dispatch reports registration or cooldown failures directly. The router forwards caller
 session headers and all system/tool/cache fields to native translation.
 
+Streaming Messages, Responses, and Chat Completions use gateway keepalives
+regardless of model ID. The first keepalive is due 85 seconds after the request
+arrives. Once upstream starts sending events, keepalives are due after 15 seconds
+of inactivity at an SSE frame boundary. Messages uses Anthropic `ping` events.
+Responses and Chat Completions use SSE comments.
+
+Cloud requests with an `Origin` header wait for upstream response headers before
+the router starts keepalives, preserving CORS and request IDs. For requests that
+receive a keepalive first, HTTP 200 is already committed when upstream headers
+arrive. Before commitment, admission errors retain HTTP status and `Retry-After`.
+After commitment, errors use the endpoint's SSE error format and include an
+available retry delay in seconds. Streaming relays cancel upstream connections
+when their client disconnects. The router waits up to 10 seconds for a local
+JSON error body before returning an error with the status and retry information
+already received.
+
+If the upstream closes at a frame boundary without a terminal event for the
+requested API, the router sends an `incomplete_stream` error. It recognizes
+terminal events by SSE event name or, for frames within the 1 MiB inspection
+limit, by their data. A frame that ends midstream or receives no further bytes
+for 45 seconds causes the router to close the downstream connection. This
+keeps a heartbeat or error from completing and dispatching a partial event.
+After a keepalive has committed SSE, the router rejects a non-streaming success
+response on receipt of its headers. Late HTTP errors convey an available retry
+delay even when the upstream body is HTML or problem JSON.
+
 Translation preserves a stable prompt prefix; it does not create cache hits.
 Anthropic cache directives have no guaranteed equivalent on a chat-only backend.
 The native executor reports upstream cached-token usage. Derived `prompt_cache_key`
