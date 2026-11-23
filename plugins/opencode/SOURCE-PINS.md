@@ -8,8 +8,8 @@ The pinned actual OpenCode source trees (read-only references) are:
 | 2.1.4 (the staged native runtime) | `/tmp/opencode-214-parity` | `eb16e1b9c504fff1e7d8679d7a88421967a403a7bb233e8993879a46735ff61f` |
 | 2.2.5 (the upgraded client) | `/tmp/opencode-225-parity` | `04621edf6c47c2c7a36982ef39914d482c16977708fbd7b779f49f928bdc4fba` |
 
-Archive URLs and Bun/Effect pins: `native/opencode/reference-2x-source.json`
-(2.0.32/2.2.5) and `native/opencode/source.json` (2.1.4,
+Archive URLs and Bun/Effect pins: `source-pins/reference-2x-source.json`
+(2.0.32/2.2.5) and `source-pins/source.json` (2.1.4,
 commit `68bc26b7da1990ce10ffecfbc1e09eb13aa5d824`). The host ABI is verified
 against the pinned CLIProxyAPI v8.0.49 tree at `/tmp/m2-eval/backend`
 (`internal/pluginhost`, `sdk/pluginabi`, `sdk/pluginapi`). The earlier legacy

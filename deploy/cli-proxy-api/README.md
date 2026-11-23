@@ -162,10 +162,12 @@ Keys remain where bootstrap put them (`<root>/secrets/`, never printed).
 The operator supplies each provider key through the existing secret path;
 nothing here reads, copies or prints credentials.
 
-### Route migration table (old gateway → native target)
+### Historical route migration table (old gateway → native target)
 
-Concise per-lane decision, from `gateway.routes.yaml` + the pinned-source
-evaluation (`docs/design/cli-proxyapi-upstream-evaluation.md`):
+These were the initial migration decisions, not a current deployment or parity
+checklist. The old `gateway.routes.yaml` is retained in Git history; the
+[CPA-first inventory](../../docs/design/cpa-first-repository-migration.md)
+tracks which legacy capabilities need a separate port.
 
 | Old lane | Migration class | Native target |
 | --- | --- | --- |
@@ -212,19 +214,12 @@ The attempted native TailscaleServe HTTPS443 mapping was denied by node permissi
 
 T3's [documented hub connection](https://github.com/pingdotgg/t3code/blob/main/docs/user/usage.md#connect-a-cliproxyapi-hub) supplies usage, not inference routing. Its [current reference client](https://github.com/pingdotgg/t3code/blob/main/apps/server/src/usage/cliproxyApi.ts) uses `/v0/management/auth-files` and `/v0/management/api-call`; the latter cancontactproviders forusage and resetcreditoperations. These are currentpublicreferencefacts, not verificationofinstalledT3version. Do not blanketdenytheapi-callrouteandclaimhubcompatibility; constrain dangerousoperations separately, preserve native API, and avoidtriggeringusageprobesduringemptysetup. Cline/OpenCode usage display is not promised by this hub client.
 
-## Secondary OpenCode staging ownership
+## Historical secondary OpenCode staging handoff
 
-`transfer_opencode_owner.py` is a one-shot, staging-specific sequential handoff.
-It defaults to read-only admission. `--execute --plugin-sha <reviewed digest>`
-retires only verified old staging PIDs, holds their OS lock, blocks old restart,
-persists the latest credential privately, deletes the old DB row, then enables
-the plugin and moves the credential into the native auth directory. It never
-copies a DB, prints tokens, or automatically restarts a stale owner on failure.
-Its phase journal prevents replay; interrupted phases require direct inspection.
-
-The Nov2 handoff completed. The one-shot `probe_opencode_once.py` consumed its
-stable ID and returned429; **never replay it** or reset the ledger. The credential
-is disabled through native management while that rejection is investigated.
+The November 2 handoff completed. The one-shot probe consumed its stable ID and
+returned HTTP 429. The handoff and probe tools are retired; do not replay them
+or reset their ledger. At that checkpoint the credential was disabled through
+native management.
 Console provider headers are configured privately under
 `plugins.configs.opencode.console_headers` from the actual native Console
 snapshot. The org overlay is checked against the credential before dispatch.
@@ -256,13 +251,8 @@ Public catalog evidence is in
 of runtime capacity, key entitlement or successful inference. Old template IDs
 absent from that catalog have been removed from the OpenRouter example.
 
-After the native route is configured and its model is published, the prepared
-VPS-only `probe_openrouter_once.py` admits one real streaming Messages request
-forcing an inert `report_ready` tool proposal. It executes no tool and performs
-no continuation. It uses its own provider-specific LiveGuard ledger and stable
-ID, checks native retry/redirect/free-price/fallback policy, validates the full
-Messages terminal and original tool arguments, and never automatically retries.
-This probe is currently **not run**; key access and route activation come first.
+The one-shot OpenRouter probe depended on the legacy runtime and has been
+retired. Use the isolated CPA tests when validating repository changes.
 
 
 ### Current usable route (November 2, 2026)
