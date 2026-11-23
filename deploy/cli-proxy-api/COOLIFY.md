@@ -59,6 +59,31 @@ gateway's host and Cloudflare Access patches applied, verify the release pair
 and plugins in isolation, and retain the previous artifacts for rollback. The
 stock panel updater would replace the patched dashboard asset.
 
-The separately published [OpenAI Responses plugin](https://github.com/anschmieg/cpa-openai-responses)
-has its own Plugin Store registry. The [canonical routing issue report](../../docs/design/openai-responses-canonical-routing-issue.md)
-records the host-side requirements and verification for this provider.
+Stock CPA `v8.1.1` passed isolated Responses plugin checks. The patched CPAMC
+`v1.29.1` panel built with frozen dependencies and passed the Access login,
+login-transition, and plugin-resource regressions. These are local candidate
+checks, not a deployed upgrade or verification of the full host patchset on
+CPA `v8.1.1`.
+
+## OpenAI Responses plugin
+
+Add the separately published plugin's registry under `plugins.store-sources`:
+
+```text
+https://raw.githubusercontent.com/anschmieg/cpa-openai-responses/main/registry.json
+```
+
+Install **OpenAI Responses** from **Plugins → Store** in an authenticated
+Cloudflare Access dashboard session. Follow the [plugin setup guide](https://github.com/anschmieg/cpa-openai-responses#install-and-configure)
+to configure persistent state, an optional model allowlist, and the project key
+through the plugin's write-only **OpenAI Responses Key** page.
+
+For a plugin upgrade from `v0.1.0`, remove the legacy plaintext `api_key` from
+CPA's YAML after the updated plugin migrates it. Save a replacement project key
+in **OpenAI Responses Key** before revoking the old one; old config backups may
+still contain it.
+
+Before enabling the provider, run the isolated smoke test against the patched
+CPA binary intended for deployment. After restart, verify model discovery and
+authentication under the configured caller policy. The [canonical routing issue report](../../docs/design/openai-responses-canonical-routing-issue.md)
+records the host-side requirements and test coverage.
