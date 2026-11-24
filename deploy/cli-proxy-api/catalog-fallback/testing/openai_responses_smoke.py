@@ -24,7 +24,7 @@ COMPACT_TOKEN = "gAAAA-openai-compact-test"
 KEY = "mock-upstream-key"
 
 
-def run(binary, library, root, canonical=False):
+def run(binary, library, root, canonical=False, response_ownership=False):
     certificate, private_key = root / "cert.pem", root / "key.pem"
     subprocess.run(
         ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
@@ -53,7 +53,7 @@ def run(binary, library, root, canonical=False):
                     {"type": "response.output_item.done", "item": {
                         "type": "reasoning", "encrypted_content": STREAM_TOKEN, "summary": []}},
                     {"type": "response.completed", "response": {
-                        "id": "resp_stream", "output": [], "usage": {
+                        "id": "resp_stream", "object": "response", "output": [], "usage": {
                             "input_tokens": 1800, "input_tokens_details": {"cached_tokens": 1500}}}},
                 ]
                 self.send_response(200)
@@ -244,8 +244,12 @@ plugins:
                         {"role": "user", "content": "hi"}
                     ]})[0] == 400
                     assert not calls
+                if response_ownership:
+                    status, body = post("start")
+                    assert status == 200 and json.loads(body)["id"] == "resp_native", (status, body)
+                previous_id = "resp_native" if response_ownership else "resp_previous"
                 original = ('{ "model": "' + MODEL + '", "input": "hi", '
-                            '"previous_response_id": "resp_previous", "store": false, '
+                            f'"previous_response_id": "{previous_id}", "store": false, '
                             '"prompt_cache_key": "stable", "prompt_cache_retention": "24h", '
                             '"prompt_cache_options": {"ttl": "12h"}, '
                             '"tools": [ { "type": "web_search" } ], '
@@ -259,6 +263,17 @@ plugins:
                 assert raw == original.replace(MODEL, UPSTREAM_MODEL, 1).encode()
                 assert headers["Authorization"] == f"Bearer {KEY}"
                 assert "private" not in str(headers)
+                if response_ownership:
+                    count = len(calls)
+                    for key, previous in (("mock-downstream-b", "resp_native"),
+                                          ("mock-downstream-a", "resp_unknown"),
+                                          ("mock-downstream-a", 42)):
+                        status, body = request("POST", "/v1/responses", {
+                            "model": MODEL, "input": "continue", "previous_response_id": previous,
+                        }, key=key)
+                        assert status == 400 and "previous_response_id" in body, (status, body)
+                    assert len(calls) == count
+                    assert post("standalone", previous_response_id=None)[0] == 200
                 count = len(calls)
                 assert post(replay("gAAAA-codex"))[0] == 400
                 assert post([{"type": "thinking", "signature": "codex-signature"}])[0] == 400
@@ -272,6 +287,8 @@ plugins:
                 status, body = post("hi", stream=True)
                 assert status == 200 and "response.completed" in body and STREAM_TOKEN in body, (status, body)
                 assert "[DONE]" not in body and '"cached_tokens": 1500' in body, body
+                if response_ownership:
+                    assert post("continue stream", previous_response_id="resp_stream")[0] == 200
                 assert post(replay(STREAM_TOKEN))[0] == 200
                 status, body = post("truncate", stream=True)
                 assert status != 200 or "error" in body, (status, body)
@@ -289,6 +306,17 @@ plugins:
             try:
                 if canonical:
                     set_billing("PAID")
+                    if response_ownership:
+                        set_billing("PAID", key="mock-downstream-b")
+                if response_ownership:
+                    for previous_id in ("resp_native", "resp_stream"):
+                        count = len(calls)
+                        status, body = request("POST", "/v1/responses", {
+                            "model": MODEL, "input": "continue after restart", "previous_response_id": previous_id,
+                        }, key="mock-downstream-b")
+                        assert status == 400 and "previous_response_id" in body, (status, body)
+                        assert len(calls) == count
+                        assert post("continue after restart", previous_response_id=previous_id)[0] == 200
                 assert post(replay(TOKEN))[0] == 200
                 assert post(replay(STREAM_TOKEN))[0] == 200
                 assert post([{"type": "compaction", "encrypted_content": COMPACT_TOKEN}])[0] == 200
@@ -307,7 +335,8 @@ if __name__ == "__main__":
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--plugin", type=Path, required=True)
     parser.add_argument("--canonical", action="store_true", help="exercise the gateway canonical billing policy")
+    parser.add_argument("--response-ownership", action="store_true", help="require caller-bound response IDs")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="responses-plugin-smoke-") as temp:
-        run(args.binary.resolve(), args.plugin.resolve(), Path(temp), args.canonical)
+        run(args.binary.resolve(), args.plugin.resolve(), Path(temp), args.canonical, args.response_ownership)
     print("CPA Responses plugin mock-host checks passed")
