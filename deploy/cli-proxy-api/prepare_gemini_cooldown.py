@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply temporary Gemini cooldowns to the exact archived native .27 source."""
+"""Apply temporary Gemini cooldowns to the reviewed canonical CPA rebuild."""
 import argparse
 import hashlib
 import json
@@ -27,7 +27,7 @@ def main():
         if hashlib.sha256((args.source / name).read_bytes()).hexdigest() != expected:
             parser.error('source differs: ' + name)
     shutil.copytree(args.source, args.output, ignore=shutil.ignore_patterns('.git', '*.so', 'cli-proxy-api'))
-    subprocess.run(['patch', '-p1', '--batch', '--forward', '-i', str(PATCHES / 'native.patch')], cwd=args.output, check=True)
+    subprocess.run(['patch', '-p1', '--batch', '--forward', '--fuzz=0', '-i', str(PATCHES / 'native.patch')], cwd=args.output, check=True)
     for filename, destination in NEW_FILES.items():
         target = args.output / destination
         if target.exists():

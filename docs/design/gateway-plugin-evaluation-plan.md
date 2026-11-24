@@ -1,5 +1,7 @@
 # Gateway plugin and deployment evaluation
 
+Historical request and candidate inventory. For the current native-only baseline, exact source receipts, and staged decisions, see [CPA plugin and smart-routing decisions](cpa-plugin-routing-decisions.md).
+
 The public Node gateway owns the unified catalog, routing across backends, and specialist endpoints. Its Docker image embeds CLIProxyAPI (CPA) v7.3.20 for OAuth. The separate CPA v8.0.49 line has OpenCode and Cline plugins, a pinned Free Model Hub integration, and host patches for catalog and canonical routing. A feature moved to a plugin only applies to requests that go through that CPA host. Evaluate both hosts separately and record which gateway code could actually be retired.
 
 This is the research plan for the requested inventory. Implementation, provider enrollment, and deployment follow separately. Repository descriptions below identify candidates to investigate. Confirm behavior from source before treating any candidate as a fit. The [earlier plugin reference backlog](gateway-plugin-reference-backlog.md) is also an input where its candidates overlap.

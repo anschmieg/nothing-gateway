@@ -1,0 +1,22 @@
+name: Check upstream runtime releases
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Compare stable upstream releases with bundle inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/cli-proxy-api/check-runtime-upstream.sh

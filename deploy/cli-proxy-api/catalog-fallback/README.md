@@ -179,7 +179,9 @@ python3 deploy/cli-proxy-api/catalog-fallback/testing/openai_responses_smoke.py 
 ```
 
 The fixture uses fake credentials and checks that only explicit `PAID` requests
-reach the qualified plugin model. See the [issue report](../../../docs/design/openai-responses-canonical-routing-issue.md).
+reach the qualified plugin model. It also verifies that this permission does not
+carry over to a different caller key or session ID. See the
+[issue report](../../../docs/design/openai-responses-canonical-routing-issue.md).
 
 The isolated harness uses fake credentials, fake benchmark data and loopback TLS
 providers, with mandatory `bwrap --unshare-net` and exact existing plugin hashes:

@@ -56,14 +56,55 @@ Existing Access application/personal-email policy stays unchanged.
 Git push deployments rebuild the runtime image but do not upgrade the mounted
 CPA binary or CPAMC panel. Build upgrades from pinned upstream source with the
 gateway's host and Cloudflare Access patches applied, verify the release pair
-and plugins in isolation, and retain the previous artifacts for rollback. The
-stock panel updater would replace the patched dashboard asset.
+and plugins in isolation, and retain the previous artifacts for rollback. Keep
+`management.disable-auto-update-panel: true` and the mounted panel present
+so the native updater leaves the patched dashboard asset in place.
 
-Stock CPA `v8.1.1` passed isolated Responses plugin checks. The patched CPAMC
-`v1.29.1` panel built with frozen dependencies and passed the Access login,
-login-transition, and plugin-resource regressions. These are local candidate
-checks, not a deployed upgrade or verification of the full host patchset on
-CPA `v8.1.1`.
+Stock CPA `v8.1.1` and `v8.1.2` passed isolated Responses plugin checks. Porting
+the gateway host patchset to `v8.1.2` requires a separate review of changed
+source anchors.
+
+### Tag-triggered candidate releases
+
+Push a new `YYYY-MM-DD-*` tag on the reviewed gateway commit to run
+[Runtime bundle](../../.github/workflows/runtime-release.yml). Use the UTC
+date and a short label such as `2026-11-24-cpa-panel`. Labels use lowercase
+letters and digits with optional hyphen separators. The tag identifies the
+assembled snapshot; the manifest records the component versions. A successful
+build publishes a GitHub **prerelease** with a Linux ARM64 archive containing
+the patched CPA binary, patched CPAMC HTML, and a build/test manifest. Verify
+the archive with `sha256sum -c SHA256SUMS` before unpacking. Launch the workflow
+manually or open a pull request that changes runtime sources for a build-only
+dry run. It uploads Actions artifacts without publishing a release. Restrict
+creation of dated bundle tags to release
+maintainers, enable immutable releases if available, and do not move or reuse
+a published tag.
+
+To run the same build locally on Linux ARM64 with Go `1.26.10`, Node
+`22.22.1`, Bun `1.4.3`, and Bubblewrap:
+`bash deploy/cli-proxy-api/build-runtime-bundle.sh "$(date -u +%F)-dry-run" <new-output-dir>`.
+
+The first bundle uses the reviewed CPA `v8.0.49` rebuild with the Gemini
+cooldown overlay and patched CPAMC `v1.29.2`. Responses `v0.3.0` is exercised
+as a separate plugin. Verifying an authorized promotion also requires the
+installed plugin inventory, config/state compatibility, and a rollback drill
+with the previous pair.
+
+[Check upstream runtime releases](../../.github/workflows/runtime-upstream.yml)
+runs daily on the default branch and supports manual runs. The Actions summary
+compares upstream stable tags and resolved commits with the reviewed bundle
+inputs. A difference flags a port and verification task. Review upstream
+changes and update the source inputs with passing patch and protocol checks
+before creating the next dated candidate.
+
+For a later approved promotion, retain a verified copy of the previous CPA
+binary and panel **as a pair**, plus compatible config/state if a migration
+requires it. Stop the single Coolify owner, replace `bin/cli-proxy-api` and
+`config/static/management.html` together, then restart and check health and
+Access-protected management without inference. If startup or management checks
+fail, stop the owner again and restore the previous pair and any required
+compatible state before restarting. A tag is a source reference, not a
+replacement for retaining the exact artifacts.
 
 ## OpenAI Responses plugin
 

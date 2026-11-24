@@ -6,6 +6,7 @@ import argparse,pathlib,subprocess,tarfile,tempfile,hashlib,json
 PINS = {
     '4e4aeff23f9f82b3ccdbe48b2e774d5dc918234e': 'v1.27.0',
     '3128b0ba10ae425d243f52e865b96e7e7c518291': 'v1.29.1',
+    '3866a16878b04c19627ef0db06a33f5cd79878cf': 'v1.29.2',
 }
 def replace(text,anchor,new):
  if text.count(anchor)!=1:raise RuntimeError('Pinned dashboard anchor differs')

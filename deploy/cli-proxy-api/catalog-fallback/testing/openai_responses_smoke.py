@@ -231,6 +231,12 @@ plugins:
                     assert post("hi", stream=True)[0] == 403
                     assert request("POST", "/v1/responses/compact", {"model": MODEL, "input": "hi"})[0] == 403
                     set_billing("PAID")
+                    for key, session in (("mock-downstream-b", session_headers["X-Gateway-Session"]),
+                                         ("mock-downstream-a", "other-responses-session")):
+                        status, body = request("POST", "/v1/responses", {"model": MODEL, "input": "hi"},
+                                               key=key, **{"X-Gateway-Session": session})
+                        assert status == 403 and "requires explicit PAID" in body, (key, session, status, body)
+                        assert not calls, (key, session, len(calls))
                     set_billing("PAID", key="mock-downstream-b")
                     assert post("hi", model=MODEL + ":free")[0] == 403
                     assert post("hi", model="openai-responses/unknown")[0] == 503
