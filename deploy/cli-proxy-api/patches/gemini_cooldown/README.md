@@ -1,9 +1,12 @@
 # Temporary Gemini cooldowns
 
-Applied to the archived native `8.0.49-tokligence.27-portable-history` source
-with `prepare_gemini_cooldown.py`. Input hashes prevent applying the patch to
-an unrelated revision. Production rollout evidence is in
-`docs/design/gemini-cooldown-deployment-20261115.json`.
+The runtime bundle applies `prepare_gemini_cooldown.py` after the canonical CPA
+`v8.0.49` rebuild. Input hashes and exact patch context guard the four touched
+files. The earlier `.28` overlay applied to archived `.27` source, with rollout
+evidence in [the November 15 deployment record](../../../../docs/design/gemini-cooldown-deployment-20261115.json).
+The current patch carries forward its recovery hooks using the formatted
+canonical dispatch code. The bundle gates publication on the Gemini regression
+suite with the Go race detector and an isolated network namespace.
 
 Gemini 402/429 responses explicitly reporting depleted prepayment credits are
 credential-scoped. The native quota machinery temporarily excludes sibling

@@ -1,6 +1,6 @@
 {
   "sdk/cliproxy/auth/conductor.go": "226d6ec7835470cf54fa94d808973275e0b046a6b074c55f27971b2dedcbbcba",
   "sdk/cliproxy/auth/conductor_cooldown.go": "b803a3e96609f1d48729c6a2c5fee00851432df2c68d4853a6f5a9c95ed1b392",
-  "sdk/cliproxy/auth/canonical_policy_execution.go": "54752e70e94fcc04239beee99307cc2add4688bd54d6560cdd5580de6f779791",
+  "sdk/cliproxy/auth/canonical_policy_execution.go": "575a8b0cff68019147d45f5ef5455e4fc430f0e8d8198721493236ec3ed59d88",
   "internal/runtime/executor/gemini_executor.go": "77ba289289254ca6781bffdb57694fd76a3190090beee12d8399ec9994ec3d59"
 }

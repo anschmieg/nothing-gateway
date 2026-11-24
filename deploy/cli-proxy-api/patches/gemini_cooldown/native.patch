@@ -27,71 +27,15 @@
  							state.NextRetryAfter = time.Time{}
 --- a/sdk/cliproxy/auth/canonical_policy_execution.go
 +++ b/sdk/cliproxy/auth/canonical_policy_execution.go
-@@ -22,9 +22,18 @@
- 		return registry.CanonicalRoutingConfig{}
- 	}
- 	p := cfg.Models.CanonicalRouting
-- p.OAuthSubscriptionAssumptions=append([]registry.OAuthSubscriptionAssumption(nil),p.OAuthSubscriptionAssumptions...)
-- if p.Profiles!=nil {cloned:=map[string]registry.ModelProfile{};for name,profile:=range p.Profiles{cloned[name]=profile};p.Profiles=cloned}
-- p.NoChargeAllowances=append([]registry.NoChargeAllowance(nil),p.NoChargeAllowances...);for i:=range p.NoChargeAllowances{p.NoChargeAllowances[i].SourceModels=append([]string(nil),p.NoChargeAllowances[i].SourceModels...)}
-+	p.OAuthSubscriptionAssumptions = append([]registry.OAuthSubscriptionAssumption(nil), p.OAuthSubscriptionAssumptions...)
-+	if p.Profiles != nil {
-+		cloned := map[string]registry.ModelProfile{}
-+		for name, profile := range p.Profiles {
-+			cloned[name] = profile
-+		}
-+		p.Profiles = cloned
-+	}
-+	p.NoChargeAllowances = append([]registry.NoChargeAllowance(nil), p.NoChargeAllowances...)
-+	for i := range p.NoChargeAllowances {
-+		p.NoChargeAllowances[i].SourceModels = append([]string(nil), p.NoChargeAllowances[i].SourceModels...)
-+	}
- 	if p.FreeFallbacks != nil {
- 		out := map[string][]string{}
- 		for k, v := range p.FreeFallbacks {
-@@ -47,7 +56,7 @@
- 	}
- 	return preserveRequestedModelSuffix(route, info.CanonicalSourceID), true
- }
--func (m *Manager) validateCanonicalDispatch(ctx context.Context,a *Auth, req cliproxyexecutor.Request, opts *cliproxyexecutor.Options) error {
-+func (m *Manager) validateCanonicalDispatch(ctx context.Context, a *Auth, req cliproxyexecutor.Request, opts *cliproxyexecutor.Options) error {
- 	if !canonicalOneDispatch(opts.Metadata) {
- 		return nil
- 	}
-@@ -77,27 +86,47 @@
- 	if !permit.Claim() {
- 		return &Error{Code: "canonical_dispatch_budget", Message: "canonical physical dispatch permit already consumed", HTTPStatus: 409}
- 	}
--	if err:=m.guardBillingDispatch(ctx,a,current,strings.TrimSuffix(strings.TrimSuffix(route,":free"),":paid"));err!=nil{return err}
-- opts.Metadata["gateway.canonical_source_model"] = bound.PluginSource
-+	if err := m.guardBillingDispatch(ctx, a, current, strings.TrimSuffix(strings.TrimSuffix(route, ":free"), ":paid")); err != nil {
-+		return err
-+	}
-+	opts.Metadata["gateway.canonical_source_model"] = bound.PluginSource
- 	opts.Metadata["gateway.canonical_cost_tier"] = bound.CostTier
- 	opts.Metadata["gateway.canonical_vendor"] = bound.Owner
- 	opts.Metadata["gateway.canonical_free"] = bound.Free
- 	return nil
- }
- func (m *Manager) executeCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
--	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
-+	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
- 		return cliproxyexecutor.Response{}, err
-+	}
+@@ -100,0 +101,7 @@
 +	release, err := m.acquireGeminiRecovery(a, req.Model)
 +	if err != nil {
 +		return cliproxyexecutor.Response{}, err
 +	}
 +	if release != nil {
 +		defer release()
- 	}
- 	return e.Execute(ctx, a, req, opts)
- }
- func (m *Manager) streamCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (*cliproxyexecutor.StreamResult, error) {
--	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
-+	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
- 		return nil, err
- 	}
++	}
+@@ -107 +114,12 @@
 -	return e.ExecuteStream(ctx, a, req, opts)
 +	release, err := m.acquireGeminiRecovery(a, req.Model)
 +	if err != nil {
@@ -105,13 +49,6 @@
 +		return nil, err
 +	}
 +	return holdGeminiRecoveryStream(ctx, result, release), nil
- }
- func (m *Manager) countCanonicalGuarded(ctx context.Context, e ProviderExecutor, a *Auth, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
--	if err := m.validateCanonicalDispatch(ctx,a, req, &opts); err != nil {
-+	if err := m.validateCanonicalDispatch(ctx, a, req, &opts); err != nil {
- 		return cliproxyexecutor.Response{}, err
- 	}
- 	return e.CountTokens(ctx, a, req, opts)
 --- a/internal/runtime/executor/gemini_executor.go
 +++ b/internal/runtime/executor/gemini_executor.go
 @@ -12,6 +12,7 @@

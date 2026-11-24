@@ -1,7 +1,8 @@
 # Native panel Access bootstrap
 
-`patch_dashboard.py` supports the pinned source commits for CPAMC `v1.27.0`
-and `v1.29.1`. The Access bootstrap applies only on `https://code.nothing.pink`.
+`patch_dashboard.py` supports the pinned source commits for CPAMC `v1.27.0`,
+`v1.29.1`, and `v1.29.2`. The Access bootstrap applies only on
+`https://code.nothing.pink`.
 A successful same-origin management config fetch with an empty key establishes
 auth without a dummy management key, cross-origin API base, or stored credentials.
 The backend separately validates signed Access assertions. Other hosts retain
