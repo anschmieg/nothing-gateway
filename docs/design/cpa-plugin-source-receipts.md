@@ -104,3 +104,22 @@ digest check, and restoring the previous pair brought back both original
 digests and health. This exercises the replacement sequence with synthetic
 state. The actual installed pair, existing state compatibility, and live
 Cloudflare Access remain production verification gates.
+
+## Hosted baseline and CPA v8.1.2 port
+
+- The `2026-11-24-baseline` prerelease was built from gateway `15889d8` on
+  GitHub-hosted Linux ARM64. The downloaded archive passed checksum and
+  source manifest verification and its binary reports AArch64 in the ELF header.
+  [Published artifacts](https://github.com/anschmieg/nothing-gateway/releases/tag/2026-11-24-baseline).
+- Applied the gateway changes to exact upstream CPA commit
+  `85225381d89915595598ed13766cd79890c03a84`. Canonical admission wraps physical
+  dispatch before execution, while upstream session affinity, credential
+  preparation and usage reporting remain in their native paths. The port uses
+  native `ojson` and the upstream Gemini retry parser for 429, with Gemini's
+  existing explicit depleted-credit classification and 402/503 hints retained.
+- Locally, the port passed focused registry, routing, billing, provider budget,
+  Gemini, and plugin host tests. The same Responses `v0.3.0`, Cline, OpenCode,
+  and Free Model Hub fixture binaries passed isolated smokes. The Free Model Hub
+  fixture verifies native `kv.db` stays out of credential listings and denies
+  upstream version metadata locally without opening a tunnel. Installed versions,
+  state and live Cloudflare Access still require separate production verification.

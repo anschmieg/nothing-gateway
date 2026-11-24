@@ -54,19 +54,17 @@ checkout router-for-me/Cli-Proxy-API-Management-Center "$panel_commit" "$scratch
 checkout anschmieg/cpa-openai-responses "$responses_commit" "$scratch/responses"
 
 mkdir "$scratch/bundle"
-python3 "$here/catalog-fallback/rebuild.py" --upstream "$scratch/cpa" --output "$scratch/patched"
-jq -e --arg commit "$cpa_commit" '.base_commit == $commit' \
-  "$scratch/patched/native-base/provider-budget-manifest.json" > /dev/null
-python3 "$here/prepare_gemini_cooldown.py" --source "$scratch/patched/backend" --output "$scratch/backend"
+cpa_patch="patches/cpa-$cpa_version.patch"
+git -C "$scratch/cpa" apply --index --whitespace=nowarn "$here/$cpa_patch"
 (
-  cd "$scratch/backend"
+  cd "$scratch/cpa"
   CGO_ENABLED=1 go build -trimpath -ldflags "-s -w -X main.Version=${cpa_version#v}-$tag -X main.Commit=$gateway_commit" \
     -o "$scratch/bundle/cli-proxy-api" ./cmd/server
-  go test -trimpath ./internal/registry ./sdk/api/handlers ./sdk/cliproxy/auth \
-    -run '^TestSession|^TestProfileNativeStreamPreservesProfileAndNoPostOutputFallback$|^TestReviewSimilarityCapabilityRevocationAtFinalDispatch$' -count=1
+  go test -trimpath ./internal/catalogfallback ./internal/pluginhost ./internal/registry ./sdk/api/handlers ./sdk/cliproxy ./sdk/cliproxy/auth \
+    -run '^Test(Session|Profile|Review|ProviderDispatchBudget|ConfiguredPlugin|Canonical|CatalogDiscovery)' -count=1
 )
 (
-  cd "$scratch/backend"
+  cd "$scratch/cpa"
   go mod download
   isolated env GOTOOLCHAIN=local "GOMODCACHE=$(go env GOMODCACHE)" "GOCACHE=$(go env GOCACHE)" \
     "$(command -v go)" test -trimpath -race ./sdk/cliproxy/auth ./internal/runtime/executor \
@@ -97,12 +95,13 @@ jq -e --arg commit "$panel_commit" --arg version "$panel_version" \
 )
 
 jq -n --arg tag "$tag" --arg gateway "$gateway_commit" --arg cpa "$cpa_commit" \
+  --arg cpa_patch "$cpa_patch" \
   --arg panel "$panel_commit" --arg responses "$responses_commit" \
   --arg cpa_version "$cpa_version" --arg panel_version "$panel_version" --arg responses_version "$responses_version" \
   --arg go "$(go env GOVERSION)" --arg bun "$(bun --version)" --arg node "$(node --version)" '{
     tag: $tag, platform: "linux-arm64", status: "candidate",
     gateway_commit: $gateway,
-    cpa: {version: $cpa_version, commit: $cpa, patchset: ["catalog-fallback/rebuild.py", "prepare_gemini_cooldown.py"]},
+    cpa: {version: $cpa_version, commit: $cpa, patchset: $cpa_patch},
     cpamc: {version: $panel_version, commit: $panel, patchset: "patch_dashboard.py"},
     toolchain: {go: $go, bun: $bun, node: $node},
     tested_plugin: {name: "openai-responses", version: $responses_version, commit: $responses, bundled: false},

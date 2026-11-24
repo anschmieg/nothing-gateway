@@ -60,9 +60,10 @@ and plugins in isolation, and retain the previous artifacts for rollback. Keep
 `management.disable-auto-update-panel: true` and the mounted panel present
 so the native updater leaves the patched dashboard asset in place.
 
-Stock CPA `v8.1.1` and `v8.1.2` passed isolated Responses plugin checks. Porting
-the gateway host patchset to `v8.1.2` requires a separate review of changed
-source anchors.
+The `v8.1.2` candidate applies the consolidated host patch against an exact
+upstream commit. The published `2026-11-24-baseline` prerelease preserves the
+reviewed `v8.0.49` build for comparison. Both candidates use the Gemini cooldown
+overlay, CPAMC `v1.29.2`, and separately exercised Responses `v0.3.0`.
 
 ### Tag-triggered candidate releases
 
@@ -76,19 +77,17 @@ the patched CPA binary, patched CPAMC HTML, and a build/test manifest. Verify
 the archive with `sha256sum -c SHA256SUMS` before unpacking. Launch the workflow
 manually or open a pull request that changes runtime sources for a build-only
 dry run. It uploads Actions artifacts without publishing a release. Restrict
-creation of dated bundle tags to release
-maintainers, enable immutable releases if available, and do not move or reuse
-a published tag.
+creation of dated bundle tags to release maintainers. Enable immutable releases
+if available and keep published tags fixed.
 
 To run the same build locally on Linux ARM64 with Go `1.26.10`, Node
 `22.22.1`, Bun `1.4.3`, and Bubblewrap:
 `bash deploy/cli-proxy-api/build-runtime-bundle.sh "$(date -u +%F)-dry-run" <new-output-dir>`.
 
-The first bundle uses the reviewed CPA `v8.0.49` rebuild with the Gemini
-cooldown overlay and patched CPAMC `v1.29.2`. Responses `v0.3.0` is exercised
-as a separate plugin. Verifying an authorized promotion also requires the
-installed plugin inventory, config/state compatibility, and a rollback drill
-with the previous pair.
+An authorized promotion requires the installed plugin inventory, config/state
+compatibility, and a rollback drill with the previous pair. CPA `v8.1.2` may
+create `kv.db` under its auth directory by default. Include the native store
+in the state inventory and exercise the restore sequence on a private copy.
 
 [Check upstream runtime releases](../../.github/workflows/runtime-upstream.yml)
 runs daily on the default branch and supports manual runs. The Actions summary

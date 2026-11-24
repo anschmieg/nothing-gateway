@@ -194,9 +194,8 @@ def inner(outer_ns):
             pass
 
         def do_CONNECT(self):
-            # Native host's npm version updater is not plugin inference. Deny
-            # its metadata fetch locally, recording it separately; no tunnel.
-            if self.path == 'registry.npmjs.org:443':
+            if self.path in {'registry.npmjs.org:443',
+                             'antigravity-hub-auto-updater-974169037036.us-central1.run.app:443'}:
                 count('blocked_native_metadata')
                 self.send_error(403)
                 return
@@ -256,18 +255,19 @@ def inner(outer_ns):
         return json.loads(raw)
 
     def auth_gate(check_runtime=True):
-        # Native request logging creates auth/logs after a rejected request;
-        # it is not a credential. Check every regular credential file.
-        files = sorted(p.name for p in (WORK/'auth').iterdir() if p.is_file())
+        # CPA v8.1.2 creates its native state store under the auth directory.
+        files = sorted(p.name for p in (WORK/'auth').iterdir() if p.is_file() and p.name != 'kv.db')
+        runtime_files = get_json('/v8/management/credentials')['files'] if check_runtime else []
+        if any(entry.get('name') == 'kv.db' for entry in runtime_files):
+            return False
         if multi_mode:
             return (files == ['cline-a.json', 'cline-b.json', 'kilo-a.json', 'kilo-b.json', 'opencode-fixture.json']
                 and digest(WORK/'auth/opencode-fixture.json') == seeded_hash
-                and (not check_runtime or all(sum(f.get('name') == name for f in
-                    get_json('/v8/management/credentials')['files']) == 1 for name in files)))
+                and (not check_runtime or all(sum(f.get('name') == name for f in runtime_files) == 1 for name in files)))
         return (files == ['kilo-free.json', 'opencode-fixture.json']
             and digest(WORK/'auth/opencode-fixture.json') == seeded_hash
             and json.loads((WORK/'auth/kilo-free.json').read_text()).get('vendor') == 'kilo'
-            and (not check_runtime or sum(f.get('name') == 'kilo-free.json' for f in get_json('/v8/management/credentials')['files']) == 1))
+            and (not check_runtime or sum(f.get('name') == 'kilo-free.json' for f in runtime_files) == 1))
 
     try:
         inner_ns = os.readlink('/proc/self/ns/net')
