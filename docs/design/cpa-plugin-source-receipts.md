@@ -110,7 +110,9 @@ Cloudflare Access remain production verification gates.
 - The `2026-11-24-baseline` prerelease was built from gateway `15889d8` on
   GitHub-hosted Linux ARM64. The downloaded archive passed checksum and
   source manifest verification and its binary reports AArch64 in the ELF header.
-  [Published artifacts](https://github.com/anschmieg/nothing-gateway/releases/tag/2026-11-24-baseline).
+  [Tag run](https://github.com/anschmieg/nothing-gateway/actions/runs/45386360331),
+  [published artifacts](https://github.com/anschmieg/nothing-gateway/releases/tag/2026-11-24-baseline).
+  Archive SHA-256: `f5bee589c3ec4b651bc0bd60a78d1aa7f9a06e68cb20d59b8a17fbb0df9e965c`.
 - Applied the gateway changes to exact upstream CPA commit
   `85225381d89915595598ed13766cd79890c03a84`. Canonical admission wraps physical
   dispatch before execution, while upstream session affinity, credential
@@ -123,3 +125,33 @@ Cloudflare Access remain production verification gates.
   fixture verifies native `kv.db` stays out of credential listings and denies
   upstream version metadata locally without opening a tunnel. Installed versions,
   state and live Cloudflare Access still require separate production verification.
+- The [hosted build-only run](https://github.com/anschmieg/nothing-gateway/actions/runs/45388149545)
+  passed at gateway `f11d07fe3c0bdfb1b8156a21625e555d38e83795`. The downloaded
+  Actions archive matched its checksum and its manifest recorded CPA `v8.1.2`,
+  CPAMC `v1.29.2` (`3866a16878b04c19627ef0db06a33f5cd79878cf`) and separately
+  tested Responses `v0.3.0`; the executable is AArch64.
+- [The tag run](https://github.com/anschmieg/nothing-gateway/actions/runs/45388827113)
+  published [2026-11-24-cpa-8-1-2](https://github.com/anschmieg/nothing-gateway/releases/tag/2026-11-24-cpa-8-1-2)
+  from the same commit. Independently downloaded and verified both release
+  assets against GitHub's asset digests; checked `SHA256SUMS`, the manifest,
+  the tag's resolved commit and the AArch64 ELF. Archive SHA-256:
+  `b8996298f5fc59bc72f251f3668834f87bdafd04ca85d4ab367e3cd7c9cdb17d`.
+  Cline, OpenCode and Free Model Hub synthetic smokes also passed locally
+  against the downloaded build-only artifact. The prereleases are mutable;
+  these recorded digests are not proof of an installed production pair.
+
+## Responses continuation isolation
+
+- The [OpenAI Responses create reference](https://developers.openai.com/api/reference/resources/responses/methods/create)
+  defines `previous_response_id` as optional. It is not a required caller
+  identifier. CPA authenticates and admits billing independently of this field.
+- [Plugin PR #1](https://github.com/anschmieg/cpa-openai-responses/pull/1) at
+  `ed765e335d3c3ed010eabe25d718dad88946df9a` persists digests scoped to caller,
+  upstream URL, and project key. Race-enabled Go tests and a c-shared build
+  passed; local scope coverage includes a rotated key, changed URL, missing
+  caller, and duplicate fields. An isolated canonical HTTPS smoke against the
+  downloaded CPA candidate confirmed owner replay of buffered and SSE IDs,
+  continued isolation after restart, and no upstream dispatch for rejected IDs.
+  The default fixture also passed against released Responses `v0.3.0` on the
+  local port. No account entitlements, network inference, or production rollout
+  were tested. Unrecorded pre-upgrade IDs need a fresh conversation.
